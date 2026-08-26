@@ -1,11 +1,16 @@
+// src/routes/pedido.routes.js
 const express = require('express');
 const router = express.Router();
 const pedidoController = require('../controllers/pedido.controller');
+const { verifyToken, isAdmin } = require('../middleware/auth');
 
-router.get('/', pedidoController.getAll);
-router.get('/:id', pedidoController.getById);
-router.post('/', pedidoController.create);
-router.put('/:id/estado', pedidoController.updateEstado);
-router.delete('/:id', pedidoController.delete);
+// Todas las rutas requieren autenticación
+router.get('/', verifyToken, pedidoController.getAll);
+router.get('/pendientes', verifyToken, isAdmin, pedidoController.getPendientes); // ✅ NUEVO
+router.get('/:id', verifyToken, pedidoController.getById);
+router.post('/', verifyToken, pedidoController.create);
+router.put('/:id/estado', verifyToken, pedidoController.updateEstado);
+router.put('/:id/pagar', verifyToken, isAdmin, pedidoController.marcarPagado); // ✅ NUEVO
+router.delete('/:id', verifyToken, pedidoController.delete);
 
 module.exports = router;
