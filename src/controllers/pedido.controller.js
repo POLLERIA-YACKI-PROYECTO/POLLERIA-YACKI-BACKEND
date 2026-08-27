@@ -1,6 +1,8 @@
-// src/controllers/pedido.controller.js
+// controllers/pedido.controller.js
 const Pedido = require('../models/Pedido');
+const db = require('../config/database');
 
+// Obtener todos los pedidos
 exports.getAll = async (req, res) => {
   try {
     const pedidos = await Pedido.findAll();
@@ -14,6 +16,7 @@ exports.getAll = async (req, res) => {
   }
 };
 
+// Obtener pedido por ID
 exports.getById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -29,6 +32,7 @@ exports.getById = async (req, res) => {
   }
 };
 
+// Crear pedido
 exports.create = async (req, res) => {
   try {
     const { 
@@ -38,6 +42,7 @@ exports.create = async (req, res) => {
       cliente_nombre,
       cliente_id,
       tipo,
+      tipo_entrega,
       observaciones
     } = req.body;
     
@@ -70,6 +75,7 @@ exports.create = async (req, res) => {
       cliente_nombre: cliente_nombre || null,
       cliente_id: cliente_id || null,
       tipo: tipo || 'local',
+      tipo_entrega: tipo_entrega || 'local',
       estado: 'pendiente',
       observaciones: observaciones || null
     });
@@ -92,6 +98,7 @@ exports.create = async (req, res) => {
   }
 };
 
+// Actualizar estado del pedido
 exports.updateEstado = async (req, res) => {
   try {
     const { id } = req.params;
@@ -121,39 +128,157 @@ exports.updateEstado = async (req, res) => {
   }
 };
 
-// ✅ NUEVO: Marcar pedido como pagado
+// ✅ MARCAR PEDIDO COMO PAGADO - CORREGIDO
 exports.marcarPagado = async (req, res) => {
   try {
     const { id } = req.params;
+    const { metodo_pago } = req.body;
     
-    const pedido = await Pedido.findById(id);
-    if (!pedido) {
-      return res.status(404).json({ error: 'Pedido no encontrado' });
-    }
-
-    if (pedido.estado === 'entregado') {
-      return res.status(400).json({ error: 'El pedido ya está pagado' });
-    }
-
-    const actualizado = await Pedido.marcarPagado(id);
-    if (actualizado) {
-      const pedidoActualizado = await Pedido.findById(id);
-      if (pedidoActualizado && typeof pedidoActualizado.items === 'string') {
-        pedidoActualizado.items = JSON.parse(pedidoActualizado.items);
-      }
-      res.json({
-        message: 'Pedido marcado como pagado correctamente',
-        pedido: pedidoActualizado
+    console.log('📝 === MARCANDO PAGO ===');
+    console.log('📝 Pedido ID:', id);
+    console.log('📝 Método de pago:', metodo_pago);
+    console.log('📝 Usuario ID:', req.userId);
+    
+    if (!metodo_pago) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'El método de pago es requerido' 
       });
-    } else {
-      res.status(400).json({ error: 'No se pudo marcar el pedido como pagado' });
     }
+
+    // 1. Buscar el pedido
+    const [pedidos] = await db.query('SELECT * FROM pedidos WHERE id = ?', [id]);
+    
+    if (pedidos.length === 0) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Pedido no encontrado' 
+      });
+    }
+
+    const pedido = pedidos[0];
+    console.log('📝 Pedido encontrado:', {
+      id: pedido.id,
+      estado: pedido.estado,
+      pagado: pedido.pagado,
+      tipo_entrega: pedido.tipo_entrega
+    });
+
+    // Verificar si ya está pagado
+    if (pedido.pagado === 1 || pedido.pagado === true) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'El pedido ya está pagado' 
+      });
+    }
+
+    if (pedido.estado === 'cancelado') {
+      return res.status(400).json({ 
+        success: false,
+        error: 'El pedido está cancelado' 
+      });
+    }
+
+    const tipoEntrega = pedido.tipo_entrega || 'local';
+    console.log('📝 Tipo de entrega:', tipoEntrega);
+
+    // 2. Actualizar el pedido
+    const [updateResult] = await db.query(
+      `UPDATE pedidos 
+       SET estado = 'entregado', 
+           pagado = 1, 
+           metodo_pago = ?,
+           fecha_pago = NOW(),
+           updated_at = NOW() 
+       WHERE id = ? AND pagado = 0`,
+      [metodo_pago, id]
+    );
+    
+    console.log('📝 Filas afectadas:', updateResult.affectedRows);
+    
+    if (updateResult.affectedRows === 0) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'No se pudo actualizar el pedido' 
+      });
+    }
+
+    // 3. Obtener el pedido actualizado
+    const [pedidoActualizado] = await db.query('SELECT * FROM pedidos WHERE id = ?', [id]);
+    const pedidoData = pedidoActualizado[0];
+
+    // 4. Parsear items
+    let items = pedidoData.items;
+    if (typeof items === 'string') {
+      try {
+        items = JSON.parse(items);
+      } catch (e) {
+        items = [];
+      }
+    }
+
+    // 5. Crear la venta
+    console.log('📝 Creando venta con tipo_entrega:', tipoEntrega);
+    
+    const [ventaResult] = await db.query(
+      `INSERT INTO ventas 
+       (pedido_id, usuario_id, mesa_id, cliente_id, cliente_nombre, 
+        items, subtotal, igv, descuento, total, 
+        metodo_pago, numero_operacion, tipo_entrega, estado, observaciones) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        pedidoData.id,
+        pedidoData.usuario_id,
+        pedidoData.mesa_id || null,
+        pedidoData.cliente_id || null,
+        pedidoData.cliente_nombre || null,
+        JSON.stringify(items),
+        parseFloat(pedidoData.subtotal) || 0,
+        parseFloat(pedidoData.igv) || 0,
+        0,
+        parseFloat(pedidoData.total) || 0,
+        metodo_pago,
+        null,
+        tipoEntrega,
+        'completada',
+        pedidoData.observaciones || null
+      ]
+    );
+
+    console.log('✅ Venta creada con ID:', ventaResult.insertId);
+
+    // 6. Obtener el pedido completo con joins
+    const [pedidoFinal] = await db.query(`
+      SELECT p.*, 
+             u.nombre as usuario_nombre, 
+             u.rol as usuario_rol,
+             c.nombre as cliente_nombre_real
+      FROM pedidos p
+      LEFT JOIN usuarios u ON p.usuario_id = u.id
+      LEFT JOIN clientes c ON p.cliente_id = c.id
+      WHERE p.id = ?
+    `, [id]);
+
+    console.log('✅ Proceso completado exitosamente');
+
+    res.json({
+      success: true,
+      message: 'Pedido marcado como pagado correctamente',
+      pedido: pedidoFinal[0],
+      tipo_entrega: tipoEntrega
+    });
+
   } catch (error) {
-    console.error('Error en marcarPagado:', error);
-    res.status(500).json({ error: 'Error al marcar pedido como pagado' });
+    console.error('❌ Error en marcarPagado:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Error al marcar pedido como pagado',
+      detalle: error.message 
+    });
   }
 };
 
+// Eliminar pedido
 exports.delete = async (req, res) => {
   try {
     const { id } = req.params;
@@ -169,7 +294,7 @@ exports.delete = async (req, res) => {
   }
 };
 
-// ✅ NUEVO: Obtener pedidos pendientes
+// Obtener pedidos pendientes
 exports.getPendientes = async (req, res) => {
   try {
     const pedidos = await Pedido.findPendientes();
@@ -180,5 +305,34 @@ exports.getPendientes = async (req, res) => {
   } catch (error) {
     console.error('Error en getPendientes:', error);
     res.status(500).json({ error: 'Error al obtener pedidos pendientes' });
+  }
+};
+
+// Obtener pedidos pagados
+exports.getPagados = async (req, res) => {
+  try {
+    const pedidos = await Pedido.findPagados();
+    pedidos.forEach(p => {
+      if (typeof p.items === 'string') p.items = JSON.parse(p.items);
+    });
+    res.json(pedidos);
+  } catch (error) {
+    console.error('Error en getPagados:', error);
+    res.status(500).json({ error: 'Error al obtener pedidos pagados' });
+  }
+};
+
+// Obtener pedidos por tipo de entrega
+exports.getByTipoEntrega = async (req, res) => {
+  try {
+    const { tipo } = req.params;
+    const pedidos = await Pedido.findByTipoEntrega(tipo);
+    pedidos.forEach(p => {
+      if (typeof p.items === 'string') p.items = JSON.parse(p.items);
+    });
+    res.json(pedidos);
+  } catch (error) {
+    console.error('Error en getByTipoEntrega:', error);
+    res.status(500).json({ error: 'Error al obtener pedidos por tipo de entrega' });
   }
 };

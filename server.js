@@ -1,6 +1,8 @@
+// server.js
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const path = require('path');
 
 dotenv.config();
 
@@ -13,6 +15,7 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // ============================================
 // RUTAS
@@ -22,14 +25,8 @@ app.use('/api/productos', require('./src/routes/producto.routes'));
 app.use('/api/categorias', require('./src/routes/categoria.routes'));
 app.use('/api/ventas', require('./src/routes/venta.routes'));
 app.use('/api/usuarios', require('./src/routes/usuario.routes'));
-
-// ✅ AGREGAR RUTAS DE CLIENTES
 app.use('/api/clientes', require('./src/routes/cliente.routes'));
-
-// ✅ AGREGAR RUTAS DE PEDIDOS
 app.use('/api/pedidos', require('./src/routes/pedido.routes'));
-
-// ✅ AGREGAR RUTAS DE REPORTES
 app.use('/api/reportes', require('./src/routes/reporte.routes'));
 
 // Health check
@@ -39,7 +36,7 @@ app.get('/api/health', (req, res) => {
 
 // Error handler
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
+  console.error('❌ Error:', err);
   res.status(500).json({ error: 'Error interno del servidor' });
 });
 

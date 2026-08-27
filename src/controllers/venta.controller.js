@@ -1,6 +1,5 @@
+// controllers/venta.controller.js
 const Venta = require('../models/Venta');
-const Mesa = require('../models/Mesa');
-const Pedido = require('../models/Pedido');
 
 exports.getAll = async (req, res) => {
   try {
@@ -30,66 +29,80 @@ exports.getById = async (req, res) => {
   }
 };
 
-exports.getByFecha = async (req, res) => {
+exports.getByUsuario = async (req, res) => {
   try {
-    const { fechaInicio, fechaFin } = req.query;
-    if (!fechaInicio || !fechaFin) {
-      return res.status(400).json({ error: 'Fecha inicio y fin son requeridas' });
-    }
-    const ventas = await Venta.findByFecha(fechaInicio, fechaFin);
+    const { usuarioId } = req.params;
+    const ventas = await Venta.findByUsuario(usuarioId);
     ventas.forEach(v => {
       if (typeof v.items === 'string') v.items = JSON.parse(v.items);
     });
     res.json(ventas);
   } catch (error) {
-    console.error('Error en getByFecha:', error);
-    res.status(500).json({ error: 'Error al obtener ventas por fecha' });
+    console.error('Error en getByUsuario:', error);
+    res.status(500).json({ error: 'Error al obtener ventas por usuario' });
   }
 };
 
-exports.create = async (req, res) => {
+exports.getByTipoEntrega = async (req, res) => {
   try {
-    const { items, total, metodo_pago, cliente, mesa_id, tipo, pedido_id } = req.body;
-    const usuario_id = req.userId;
-    if (!items || items.length === 0) {
-      return res.status(400).json({ error: 'La venta debe tener al menos un item' });
-    }
-    if (!metodo_pago) {
-      return res.status(400).json({ error: 'Método de pago es requerido' });
-    }
-    const nuevaVenta = await Venta.create({ usuario_id, items, total, metodo_pago, cliente, mesa_id, tipo });
-    if (mesa_id) {
-      await Mesa.liberarMesa(mesa_id);
-    }
-    if (pedido_id) {
-      await Pedido.updateEstado(pedido_id, 'entregado');
-    }
-    res.status(201).json(nuevaVenta);
+    const { tipo } = req.params;
+    const ventas = await Venta.findByTipoEntrega(tipo);
+    ventas.forEach(v => {
+      if (typeof v.items === 'string') v.items = JSON.parse(v.items);
+    });
+    res.json(ventas);
   } catch (error) {
-    console.error('Error en create venta:', error);
-    res.status(500).json({ error: 'Error al crear venta' });
+    console.error('Error en getByTipoEntrega:', error);
+    res.status(500).json({ error: 'Error al obtener ventas por tipo' });
   }
 };
 
-exports.getResumenDiario = async (req, res) => {
+exports.getResumenPorUsuario = async (req, res) => {
   try {
-    const { fecha } = req.query;
-    if (!fecha) {
-      return res.status(400).json({ error: 'Fecha es requerida' });
-    }
-    const resumen = await Venta.getResumenDiario(fecha);
-    res.json(resumen);
+    const { usuarioId } = req.params;
+    const [rows] = await db.query(`
+      SELECT 
+        COUNT(*) as total_ventas,
+        SUM(total) as total_recaudado,
+        SUM(CASE WHEN tipo_entrega = 'local' THEN total ELSE 0 END) as total_local,
+        SUM(CASE WHEN tipo_entrega = 'delivery' THEN total ELSE 0 END) as total_delivery,
+        SUM(CASE WHEN metodo_pago = 'efectivo' THEN total ELSE 0 END) as total_efectivo,
+        SUM(CASE WHEN metodo_pago = 'tarjeta' THEN total ELSE 0 END) as total_tarjeta,
+        SUM(CASE WHEN metodo_pago = 'yape' THEN total ELSE 0 END) as total_yape,
+        SUM(CASE WHEN metodo_pago = 'plin' THEN total ELSE 0 END) as total_plin
+      FROM ventas 
+      WHERE usuario_id = ? AND estado = 'completada'
+    `, [usuarioId]);
+    res.json(rows[0] || { total_ventas: 0, total_recaudado: 0 });
   } catch (error) {
-    console.error('Error en getResumenDiario:', error);
-    res.status(500).json({ error: 'Error al obtener resumen diario' });
+    console.error('Error en getResumenPorUsuario:', error);
+    res.status(500).json({ error: 'Error al obtener resumen por usuario' });
+  }
+};
+
+exports.getResumenGeneral = async (req, res) => {
+  try {
+    const [rows] = await db.query(`
+      SELECT 
+        COUNT(*) as total_ventas,
+        SUM(total) as total_recaudado,
+        SUM(CASE WHEN tipo_entrega = 'local' THEN total ELSE 0 END) as total_local,
+        SUM(CASE WHEN tipo_entrega = 'delivery' THEN total ELSE 0 END) as total_delivery
+      FROM ventas 
+      WHERE estado = 'completada'
+    `);
+    res.json(rows[0] || { total_ventas: 0, total_recaudado: 0 });
+  } catch (error) {
+    console.error('Error en getResumenGeneral:', error);
+    res.status(500).json({ error: 'Error al obtener resumen general' });
   }
 };
 
 exports.delete = async (req, res) => {
   try {
     const { id } = req.params;
-    const eliminado = await Venta.delete(id);
-    if (eliminado) {
+    const [result] = await db.query('DELETE FROM ventas WHERE id = ?', [id]);
+    if (result.affectedRows > 0) {
       res.json({ message: 'Venta eliminada correctamente' });
     } else {
       res.status(404).json({ error: 'Venta no encontrada' });

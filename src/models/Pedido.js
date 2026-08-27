@@ -1,4 +1,4 @@
-// src/models/Pedido.js
+// models/Pedido.js
 const db = require('../config/database');
 
 class Pedido {
@@ -11,6 +11,7 @@ class Pedido {
       FROM pedidos p
       LEFT JOIN usuarios u ON p.usuario_id = u.id
       LEFT JOIN clientes c ON p.cliente_id = c.id
+      WHERE p.deleted_at IS NULL
       ORDER BY p.id DESC
     `);
     return rows;
@@ -25,7 +26,7 @@ class Pedido {
       FROM pedidos p
       LEFT JOIN usuarios u ON p.usuario_id = u.id
       LEFT JOIN clientes c ON p.cliente_id = c.id
-      WHERE p.id = ?
+      WHERE p.id = ? AND p.deleted_at IS NULL
     `, [id]);
     return rows[0];
   }
@@ -41,14 +42,15 @@ class Pedido {
       cliente_nombre, 
       cliente_id,
       tipo,
+      tipo_entrega,
       estado,
       observaciones
     } = pedido;
     
     const [result] = await db.query(
       `INSERT INTO pedidos 
-       (mesa_id, usuario_id, items, subtotal, igv, total, cliente_nombre, cliente_id, tipo, estado, observaciones) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (mesa_id, usuario_id, items, subtotal, igv, total, cliente_nombre, cliente_id, tipo, tipo_entrega, estado, observaciones, pagado) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         mesa_id || null, 
         usuario_id, 
@@ -59,8 +61,10 @@ class Pedido {
         cliente_nombre || null, 
         cliente_id || null,
         tipo || 'local',
+        tipo_entrega || 'local',
         estado || 'pendiente',
-        observaciones || null
+        observaciones || null,
+        0
       ]
     );
     return { id: result.insertId, ...pedido };
@@ -75,11 +79,11 @@ class Pedido {
   }
 
   static async update(id, pedido) {
-    const { mesa_id, items, subtotal, igv, total, cliente_nombre, cliente_id, tipo, observaciones, estado } = pedido;
+    const { mesa_id, items, subtotal, igv, total, cliente_nombre, cliente_id, tipo, tipo_entrega, observaciones, estado } = pedido;
     const [result] = await db.query(
       `UPDATE pedidos 
        SET mesa_id = ?, items = ?, subtotal = ?, igv = ?, total = ?, 
-           cliente_nombre = ?, cliente_id = ?, tipo = ?, observaciones = ?, estado = ?, updated_at = NOW()
+           cliente_nombre = ?, cliente_id = ?, tipo = ?, tipo_entrega = ?, observaciones = ?, estado = ?, updated_at = NOW()
        WHERE id = ?`,
       [
         mesa_id || null, 
@@ -90,6 +94,7 @@ class Pedido {
         cliente_nombre || null, 
         cliente_id || null,
         tipo || 'local',
+        tipo_entrega || 'local',
         observaciones || null,
         estado || 'pendiente',
         id
@@ -99,56 +104,10 @@ class Pedido {
   }
 
   static async delete(id) {
-    const [result] = await db.query('DELETE FROM pedidos WHERE id = ?', [id]);
+    const [result] = await db.query('UPDATE pedidos SET deleted_at = NOW() WHERE id = ?', [id]);
     return result.affectedRows > 0;
   }
 
-  static async findByFecha(fechaInicio, fechaFin) {
-    const [rows] = await db.query(`
-      SELECT p.*, 
-             u.nombre as usuario_nombre, 
-             u.rol as usuario_rol,
-             c.nombre as cliente_nombre_real
-      FROM pedidos p
-      LEFT JOIN usuarios u ON p.usuario_id = u.id
-      LEFT JOIN clientes c ON p.cliente_id = c.id
-      WHERE DATE(p.created_at) BETWEEN ? AND ?
-      ORDER BY p.created_at DESC
-    `, [fechaInicio, fechaFin]);
-    return rows;
-  }
-
-  static async findByEstado(estado) {
-    const [rows] = await db.query(`
-      SELECT p.*, 
-             u.nombre as usuario_nombre, 
-             u.rol as usuario_rol,
-             c.nombre as cliente_nombre_real
-      FROM pedidos p
-      LEFT JOIN usuarios u ON p.usuario_id = u.id
-      LEFT JOIN clientes c ON p.cliente_id = c.id
-      WHERE p.estado = ?
-      ORDER BY p.created_at DESC
-    `, [estado]);
-    return rows;
-  }
-
-  static async findByUsuario(usuarioId) {
-    const [rows] = await db.query(`
-      SELECT p.*, 
-             u.nombre as usuario_nombre, 
-             u.rol as usuario_rol,
-             c.nombre as cliente_nombre_real
-      FROM pedidos p
-      LEFT JOIN usuarios u ON p.usuario_id = u.id
-      LEFT JOIN clientes c ON p.cliente_id = c.id
-      WHERE p.usuario_id = ?
-      ORDER BY p.created_at DESC
-    `, [usuarioId]);
-    return rows;
-  }
-
-  // Obtener pedidos pendientes (para el admin)
   static async findPendientes() {
     const [rows] = await db.query(`
       SELECT p.*, 
@@ -158,19 +117,46 @@ class Pedido {
       FROM pedidos p
       LEFT JOIN usuarios u ON p.usuario_id = u.id
       LEFT JOIN clientes c ON p.cliente_id = c.id
-      WHERE p.estado IN ('pendiente', 'preparando', 'listo')
+      WHERE p.estado IN ('pendiente', 'preparando', 'listo') 
+        AND (p.pagado = 0 OR p.pagado IS NULL)
+        AND p.deleted_at IS NULL
       ORDER BY p.created_at DESC
     `);
     return rows;
   }
 
-  // Marcar pedido como pagado (entregado)
-  static async marcarPagado(id) {
-    const [result] = await db.query(
-      'UPDATE pedidos SET estado = "entregado", updated_at = NOW() WHERE id = ?',
-      [id]
-    );
-    return result.affectedRows > 0;
+  static async findPagados() {
+    const [rows] = await db.query(`
+      SELECT p.*, 
+             u.nombre as usuario_nombre, 
+             u.rol as usuario_rol,
+             c.nombre as cliente_nombre_real
+      FROM pedidos p
+      LEFT JOIN usuarios u ON p.usuario_id = u.id
+      LEFT JOIN clientes c ON p.cliente_id = c.id
+      WHERE p.estado = 'entregado' 
+        AND p.pagado = 1
+        AND p.deleted_at IS NULL
+      ORDER BY p.fecha_pago DESC
+    `);
+    return rows;
+  }
+
+  static async findByTipoEntrega(tipo_entrega) {
+    const [rows] = await db.query(`
+      SELECT p.*, 
+             u.nombre as usuario_nombre, 
+             u.rol as usuario_rol,
+             c.nombre as cliente_nombre_real
+      FROM pedidos p
+      LEFT JOIN usuarios u ON p.usuario_id = u.id
+      LEFT JOIN clientes c ON p.cliente_id = c.id
+      WHERE p.tipo_entrega = ? 
+        AND p.pagado = 1
+        AND p.deleted_at IS NULL
+      ORDER BY p.fecha_pago DESC
+    `, [tipo_entrega]);
+    return rows;
   }
 }
 

@@ -47,12 +47,10 @@ exports.create = async (req, res) => {
   try {
     const { nombre, apellido, dni, telefono, email, direccion } = req.body;
     
-    // Solo nombre es obligatorio
     if (!nombre) {
       return res.status(400).json({ error: 'El nombre es requerido' });
     }
 
-    // Si hay DNI, verificar que no exista
     if (dni) {
       const existe = await Cliente.findByDni(dni);
       if (existe) {
@@ -92,14 +90,6 @@ exports.update = async (req, res) => {
 
     if (!nombre) {
       return res.status(400).json({ error: 'El nombre es requerido' });
-    }
-
-    // Si se cambia el DNI, verificar que no exista en otro cliente
-    if (dni && dni !== cliente.dni) {
-      const existe = await Cliente.findByDni(dni);
-      if (existe && existe.id !== parseInt(id)) {
-        return res.status(400).json({ error: 'El DNI ya está registrado por otro cliente' });
-      }
     }
 
     const actualizado = await Cliente.update(id, {

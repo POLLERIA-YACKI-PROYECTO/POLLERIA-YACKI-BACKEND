@@ -22,28 +22,12 @@ class Cliente {
     return rows[0];
   }
 
-  static async findByNombre(nombre) {
-    const [rows] = await db.query(
-      'SELECT id, nombre, apellido, dni, telefono, email, direccion FROM clientes WHERE nombre LIKE ?',
-      [`%${nombre}%`]
-    );
-    return rows;
-  }
-
   static async create(cliente) {
     const { nombre, apellido, dni, telefono, email, direccion } = cliente;
-    
     const [result] = await db.query(
       `INSERT INTO clientes (nombre, apellido, dni, telefono, email, direccion) 
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        nombre, 
-        apellido || null, 
-        dni || null, 
-        telefono || null, 
-        email || null, 
-        direccion || null
-      ]
+      [nombre, apellido || null, dni || null, telefono || null, email || null, direccion || null]
     );
     return { id: result.insertId, ...cliente };
   }
