@@ -32,103 +32,125 @@ exports.getById = async (req, res) => {
   }
 };
 
-// Crear pedido
+// ✅ CREAR PEDIDO - CORREGIDO
 exports.create = async (req, res) => {
   try {
+    console.log('📝 === CREANDO PEDIDO ===');
+    console.log('📝 Body:', req.body);
+    console.log('📝 Usuario ID:', req.userId);
+
     const { 
-      mesa_id, 
       items, 
       total, 
       cliente_nombre,
       cliente_id,
       tipo,
       tipo_entrega,
-      observaciones
+      observaciones,
+      metodo_pago,
+      pagado
     } = req.body;
     
     const usuario_id = req.userId;
     
     if (!usuario_id) {
+      console.log('❌ Usuario no autenticado');
       return res.status(401).json({ error: 'Usuario no autenticado' });
     }
 
     if (!items || items.length === 0) {
+      console.log('❌ El pedido debe tener al menos un item');
       return res.status(400).json({ error: 'El pedido debe tener al menos un item' });
     }
 
+    // Calcular subtotal
     let subtotal = 0;
     items.forEach(item => {
       const precio = typeof item.precio === 'string' ? parseFloat(item.precio) : item.precio;
       const cantidad = typeof item.cantidad === 'string' ? parseInt(item.cantidad) : item.cantidad;
       subtotal += precio * cantidad;
     });
+    
     const igv = subtotal * 0.18;
     const totalFinal = total || (subtotal + igv);
 
+    console.log('📝 Subtotal:', subtotal);
+    console.log('📝 IGV:', igv);
+    console.log('📝 Total:', totalFinal);
+
+    // Crear el pedido
     const nuevoPedido = await Pedido.create({
-      mesa_id,
       usuario_id,
       items,
       subtotal,
       igv,
       total: totalFinal,
-      cliente_nombre: cliente_nombre || null,
+      cliente_nombre: cliente_nombre || 'Cliente',
       cliente_id: cliente_id || null,
       tipo: tipo || 'local',
       tipo_entrega: tipo_entrega || 'local',
       estado: 'pendiente',
-      observaciones: observaciones || null
+      observaciones: observaciones || null,
+      metodo_pago: metodo_pago || null,
+      pagado: pagado || 0
     });
 
+    console.log('✅ Pedido creado con ID:', nuevoPedido.id);
+
+    // Obtener el pedido completo
     const pedidoCompleto = await Pedido.findById(nuevoPedido.id);
     if (pedidoCompleto && typeof pedidoCompleto.items === 'string') {
       pedidoCompleto.items = JSON.parse(pedidoCompleto.items);
     }
 
+    // ✅ Si el pedido ya está pagado, marcar como pagado y crear venta
+    if (pagado === true || pagado === 1) {
+      console.log('📝 Pedido marcado como pagado directamente');
+      
+      // Actualizar estado del pedido
+      await Pedido.updateEstado(nuevoPedido.id, 'entregado');
+      
+      // Crear la venta
+      const ventaData = {
+        pedido_id: nuevoPedido.id,
+        usuario_id: usuario_id,
+        cliente_nombre: cliente_nombre || 'Cliente',
+        cliente_id: cliente_id || null,
+        items: items,
+        subtotal: subtotal,
+        igv: igv,
+        total: totalFinal,
+        metodo_pago: metodo_pago || 'efectivo',
+        tipo_entrega: tipo_entrega || 'local',
+        estado: 'completada',
+        observaciones: observaciones || null
+      };
+
+      const ventaCreada = await Pedido.crearVenta(ventaData);
+      console.log('✅ Venta creada con ID:', ventaCreada.id);
+      
+      // Marcar el pedido como pagado
+      await Pedido.marcarPagado(nuevoPedido.id, metodo_pago || 'efectivo');
+    }
+
     res.status(201).json({
+      success: true,
       message: 'Pedido creado correctamente',
       pedido: pedidoCompleto || nuevoPedido
     });
+
   } catch (error) {
-    console.error('Error en create:', error);
+    console.error('❌ Error en create:', error);
+    console.error('❌ Stack:', error.stack);
     res.status(500).json({ 
+      success: false,
       error: 'Error al crear pedido',
       detalle: error.message 
     });
   }
 };
 
-// Actualizar estado del pedido
-exports.updateEstado = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { estado } = req.body;
-    
-    const estadosValidos = ['pendiente', 'preparando', 'listo', 'entregado', 'cancelado'];
-    if (!estadosValidos.includes(estado)) {
-      return res.status(400).json({ error: 'Estado inválido' });
-    }
-
-    const actualizado = await Pedido.updateEstado(id, estado);
-    if (actualizado) {
-      const pedido = await Pedido.findById(id);
-      if (pedido && typeof pedido.items === 'string') {
-        pedido.items = JSON.parse(pedido.items);
-      }
-      res.json({
-        message: 'Estado actualizado correctamente',
-        pedido
-      });
-    } else {
-      res.status(404).json({ error: 'Pedido no encontrado' });
-    }
-  } catch (error) {
-    console.error('Error en updateEstado:', error);
-    res.status(500).json({ error: 'Error al actualizar estado' });
-  }
-};
-
-// ✅ MARCAR PEDIDO COMO PAGADO - CORREGIDO
+// ✅ MARCAR PEDIDO COMO PAGADO
 exports.marcarPagado = async (req, res) => {
   try {
     const { id } = req.params;
@@ -147,7 +169,7 @@ exports.marcarPagado = async (req, res) => {
     }
 
     // 1. Buscar el pedido
-    const [pedidos] = await db.query('SELECT * FROM pedidos WHERE id = ?', [id]);
+    const [pedidos] = await db.query('SELECT * FROM pedidos WHERE id = ? AND deleted_at IS NULL', [id]);
     
     if (pedidos.length === 0) {
       return res.status(404).json({ 
@@ -190,11 +212,11 @@ exports.marcarPagado = async (req, res) => {
            metodo_pago = ?,
            fecha_pago = NOW(),
            updated_at = NOW() 
-       WHERE id = ? AND pagado = 0`,
+       WHERE id = ? AND (pagado = 0 OR pagado IS NULL)`,
       [metodo_pago, id]
     );
     
-    console.log('📝 Filas afectadas:', updateResult.affectedRows);
+    console.log('📝 Filas afectadas en pedido:', updateResult.affectedRows);
     
     if (updateResult.affectedRows === 0) {
       return res.status(400).json({ 
@@ -217,35 +239,43 @@ exports.marcarPagado = async (req, res) => {
       }
     }
 
-    // 5. Crear la venta
-    console.log('📝 Creando venta con tipo_entrega:', tipoEntrega);
+    // 5. Crear la venta (verificar si ya existe)
+    const [ventaExistente] = await db.query('SELECT id FROM ventas WHERE pedido_id = ?', [id]);
     
-    const [ventaResult] = await db.query(
-      `INSERT INTO ventas 
-       (pedido_id, usuario_id, mesa_id, cliente_id, cliente_nombre, 
-        items, subtotal, igv, descuento, total, 
-        metodo_pago, numero_operacion, tipo_entrega, estado, observaciones) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        pedidoData.id,
-        pedidoData.usuario_id,
-        pedidoData.mesa_id || null,
-        pedidoData.cliente_id || null,
-        pedidoData.cliente_nombre || null,
-        JSON.stringify(items),
-        parseFloat(pedidoData.subtotal) || 0,
-        parseFloat(pedidoData.igv) || 0,
-        0,
-        parseFloat(pedidoData.total) || 0,
-        metodo_pago,
-        null,
-        tipoEntrega,
-        'completada',
-        pedidoData.observaciones || null
-      ]
-    );
-
-    console.log('✅ Venta creada con ID:', ventaResult.insertId);
+    let ventaId = null;
+    if (ventaExistente.length === 0) {
+      console.log('📝 Creando venta con tipo_entrega:', tipoEntrega);
+      
+      const [ventaResult] = await db.query(
+        `INSERT INTO ventas 
+         (pedido_id, usuario_id, mesa_id, cliente_id, cliente_nombre, 
+          items, subtotal, igv, descuento, total, 
+          metodo_pago, numero_operacion, tipo_entrega, estado, observaciones) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          pedidoData.id,
+          pedidoData.usuario_id,
+          pedidoData.mesa_id || null,
+          pedidoData.cliente_id || null,
+          pedidoData.cliente_nombre || null,
+          JSON.stringify(items),
+          parseFloat(pedidoData.subtotal) || 0,
+          parseFloat(pedidoData.igv) || 0,
+          0,
+          parseFloat(pedidoData.total) || 0,
+          metodo_pago,
+          null,
+          tipoEntrega,
+          'completada',
+          pedidoData.observaciones || null
+        ]
+      );
+      ventaId = ventaResult.insertId;
+      console.log('✅ Venta creada con ID:', ventaId);
+    } else {
+      ventaId = ventaExistente[0].id;
+      console.log('✅ Venta ya existe con ID:', ventaId);
+    }
 
     // 6. Obtener el pedido completo con joins
     const [pedidoFinal] = await db.query(`
@@ -264,17 +294,50 @@ exports.marcarPagado = async (req, res) => {
     res.json({
       success: true,
       message: 'Pedido marcado como pagado correctamente',
-      pedido: pedidoFinal[0],
+      pedido: pedidoFinal[0] || pedidoData,
+      venta_id: ventaId,
       tipo_entrega: tipoEntrega
     });
 
   } catch (error) {
     console.error('❌ Error en marcarPagado:', error);
+    console.error('❌ Stack:', error.stack);
     res.status(500).json({ 
       success: false,
       error: 'Error al marcar pedido como pagado',
       detalle: error.message 
     });
+  }
+};
+
+// Actualizar estado del pedido
+exports.updateEstado = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { estado } = req.body;
+    
+    const estadosValidos = ['pendiente', 'preparando', 'listo', 'entregado', 'cancelado'];
+    if (!estadosValidos.includes(estado)) {
+      return res.status(400).json({ error: 'Estado inválido' });
+    }
+
+    const actualizado = await Pedido.updateEstado(id, estado);
+    if (actualizado) {
+      const pedido = await Pedido.findById(id);
+      if (pedido && typeof pedido.items === 'string') {
+        pedido.items = JSON.parse(pedido.items);
+      }
+      res.json({
+        success: true,
+        message: 'Estado actualizado correctamente',
+        pedido
+      });
+    } else {
+      res.status(404).json({ error: 'Pedido no encontrado' });
+    }
+  } catch (error) {
+    console.error('Error en updateEstado:', error);
+    res.status(500).json({ error: 'Error al actualizar estado' });
   }
 };
 
@@ -284,7 +347,7 @@ exports.delete = async (req, res) => {
     const { id } = req.params;
     const eliminado = await Pedido.delete(id);
     if (eliminado) {
-      res.json({ message: 'Pedido eliminado correctamente' });
+      res.json({ success: true, message: 'Pedido eliminado correctamente' });
     } else {
       res.status(404).json({ error: 'Pedido no encontrado' });
     }

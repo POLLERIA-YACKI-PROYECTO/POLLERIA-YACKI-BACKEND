@@ -44,13 +44,16 @@ class Pedido {
       tipo,
       tipo_entrega,
       estado,
-      observaciones
+      observaciones,
+      metodo_pago,
+      pagado
     } = pedido;
     
     const [result] = await db.query(
       `INSERT INTO pedidos 
-       (mesa_id, usuario_id, items, subtotal, igv, total, cliente_nombre, cliente_id, tipo, tipo_entrega, estado, observaciones, pagado) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (mesa_id, usuario_id, items, subtotal, igv, total, cliente_nombre, cliente_id, 
+        tipo, tipo_entrega, estado, observaciones, metodo_pago, pagado) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         mesa_id || null, 
         usuario_id, 
@@ -58,16 +61,62 @@ class Pedido {
         subtotal || 0,
         igv || 0,
         total, 
-        cliente_nombre || null, 
+        cliente_nombre || 'Cliente', 
         cliente_id || null,
         tipo || 'local',
         tipo_entrega || 'local',
         estado || 'pendiente',
         observaciones || null,
-        0
+        metodo_pago || null,
+        pagado || 0
       ]
     );
     return { id: result.insertId, ...pedido };
+  }
+
+  // ✅ NUEVO MÉTODO: Crear venta directamente
+  static async crearVenta(venta) {
+    const { 
+      pedido_id,
+      usuario_id,
+      mesa_id,
+      cliente_id,
+      cliente_nombre,
+      items,
+      subtotal,
+      igv,
+      descuento,
+      total,
+      metodo_pago,
+      numero_operacion,
+      tipo_entrega,
+      estado,
+      observaciones
+    } = venta;
+    
+    const [result] = await db.query(
+      `INSERT INTO ventas 
+       (pedido_id, usuario_id, mesa_id, cliente_id, cliente_nombre, items, subtotal, igv, descuento, total, metodo_pago, numero_operacion, tipo_entrega, estado, observaciones) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        pedido_id || null,
+        usuario_id,
+        mesa_id || null,
+        cliente_id || null,
+        cliente_nombre || 'Cliente',
+        JSON.stringify(items),
+        subtotal || 0,
+        igv || 0,
+        descuento || 0,
+        total,
+        metodo_pago,
+        numero_operacion || null,
+        tipo_entrega || 'local',
+        estado || 'completada',
+        observaciones || null
+      ]
+    );
+    return { id: result.insertId, ...venta };
   }
 
   static async updateEstado(id, estado) {
@@ -91,7 +140,7 @@ class Pedido {
         subtotal || 0,
         igv || 0,
         total, 
-        cliente_nombre || null, 
+        cliente_nombre || 'Cliente', 
         cliente_id || null,
         tipo || 'local',
         tipo_entrega || 'local',
@@ -99,6 +148,19 @@ class Pedido {
         estado || 'pendiente',
         id
       ]
+    );
+    return result.affectedRows > 0;
+  }
+
+  static async marcarPagado(id, metodo_pago) {
+    const [result] = await db.query(
+      `UPDATE pedidos 
+       SET pagado = 1, 
+           metodo_pago = ?,
+           fecha_pago = NOW(),
+           updated_at = NOW() 
+       WHERE id = ?`,
+      [metodo_pago, id]
     );
     return result.affectedRows > 0;
   }
