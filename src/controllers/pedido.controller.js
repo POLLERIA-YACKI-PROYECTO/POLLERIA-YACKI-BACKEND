@@ -40,6 +40,7 @@ exports.create = async (req, res) => {
     console.log('📝 Usuario ID:', req.userId);
 
     const { 
+      mesa_id,
       items, 
       total, 
       cliente_nombre,
@@ -81,6 +82,7 @@ exports.create = async (req, res) => {
     // Crear el pedido
     const nuevoPedido = await Pedido.create({
       usuario_id,
+      mesa_id: mesa_id || null,
       items,
       subtotal,
       igv,

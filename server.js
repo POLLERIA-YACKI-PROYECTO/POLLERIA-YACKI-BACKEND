@@ -28,6 +28,7 @@ app.use('/api/usuarios', require('./src/routes/usuario.routes'));
 app.use('/api/clientes', require('./src/routes/cliente.routes'));
 app.use('/api/pedidos', require('./src/routes/pedido.routes'));
 app.use('/api/reportes', require('./src/routes/reporte.routes'));
+app.use('/api/mesas', require('./src/routes/mesa.routes'));
 
 // Health check
 app.get('/api/health', (req, res) => {
