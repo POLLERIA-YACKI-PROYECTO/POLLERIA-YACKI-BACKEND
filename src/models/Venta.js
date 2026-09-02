@@ -1,4 +1,4 @@
-// models/Venta.js
+// src/models/Venta.js
 const db = require('../config/database');
 
 class Venta {

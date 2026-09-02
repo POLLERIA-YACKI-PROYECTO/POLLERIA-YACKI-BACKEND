@@ -1,3 +1,5 @@
+// src/models/Producto.js
+
 const db = require('../config/database');
 
 class Producto {

@@ -1,4 +1,4 @@
-// controllers/venta.controller.js
+// src/controllers/venta.controller.js
 const Venta = require('../models/Venta');
 const db = require('../config/database');
 

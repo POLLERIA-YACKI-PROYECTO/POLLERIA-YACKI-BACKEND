@@ -1,3 +1,5 @@
+// src\controllers\categoria.controller.js
+
 const Categoria = require('../models/Categoria');
 
 exports.getAll = async (req, res) => {

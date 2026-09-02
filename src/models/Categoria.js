@@ -1,3 +1,5 @@
+// src/models/Categoria.js
+
 const db = require('../config/database');
 
 class Categoria {

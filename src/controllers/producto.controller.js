@@ -1,3 +1,5 @@
+// src\controllers\producto.controller.js
+
 const Producto = require('../models/Producto');
 
 exports.getAll = async (req, res) => {

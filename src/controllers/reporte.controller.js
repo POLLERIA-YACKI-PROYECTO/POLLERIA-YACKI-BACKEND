@@ -1,4 +1,4 @@
-// controllers/reporte.controller.js
+// src\controllers\reporte.controller.js
 const Venta = require('../models/Venta');
 const Usuario = require('../models/Usuario');
 
