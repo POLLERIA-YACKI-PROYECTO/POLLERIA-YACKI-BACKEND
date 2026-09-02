@@ -1,4 +1,4 @@
-// controllers/cliente.controller.js
+// src\controllers\cliente.controller.js
 const Cliente = require('../models/Cliente');
 
 // Obtener todos los clientes

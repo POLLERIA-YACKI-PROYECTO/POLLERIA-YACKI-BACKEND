@@ -1,4 +1,4 @@
-// controllers/pedido.controller.js
+// src\controllers\pedido.controller.js
 const Pedido = require('../models/Pedido');
 const db = require('../config/database');
 

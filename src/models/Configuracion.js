@@ -1,3 +1,5 @@
+// src/models/Configuracion.js
+
 const db = require('../config/database');
 
 class Configuracion {

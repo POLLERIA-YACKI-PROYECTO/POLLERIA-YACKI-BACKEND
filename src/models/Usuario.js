@@ -1,4 +1,4 @@
-// models/Usuario.js
+// src/models/Usuario.js
 const db = require('../config/database');
 
 class Usuario {

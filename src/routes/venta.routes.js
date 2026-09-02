@@ -1,4 +1,4 @@
-// routes/venta.routes.js
+// src/routes/venta.routes.js
 const express = require('express');
 const router = express.Router();
 const ventaController = require('../controllers/venta.controller');

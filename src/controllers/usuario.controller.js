@@ -1,4 +1,4 @@
-// controllers/usuario.controller.js
+// src/controllers/usuario.controller.js
 const Usuario = require('../models/Usuario');
 const bcrypt = require('bcryptjs');
 

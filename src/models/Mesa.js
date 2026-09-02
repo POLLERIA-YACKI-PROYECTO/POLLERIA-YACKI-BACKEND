@@ -1,3 +1,5 @@
+// src/models/Mesa.js
+
 const db = require('../config/database');
 
 class Mesa {

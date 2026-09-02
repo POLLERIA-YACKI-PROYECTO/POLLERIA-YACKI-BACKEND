@@ -1,3 +1,5 @@
+// src\controllers\configuracion.controller.js
+
 const Configuracion = require('../models/Configuracion');
 
 exports.getAll = async (req, res) => {

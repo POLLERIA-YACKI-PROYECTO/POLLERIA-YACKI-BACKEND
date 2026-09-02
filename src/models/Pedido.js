@@ -1,4 +1,4 @@
-// models/Pedido.js
+// src/models/Pedido.js
 const db = require('../config/database');
 
 class Pedido {
