@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const mesaController = require('../controllers/mesa.controller');
+const { verifyToken } = require('../middleware/auth');
+
+// Todas las rutas requieren autenticación
+router.use(verifyToken);
 
 router.get('/', mesaController.getAll);
 router.get('/:id', mesaController.getById);

@@ -2,6 +2,10 @@
 const express = require('express');
 const router = express.Router();
 const reporteController = require('../controllers/reporte.controller');
+const { verifyToken, isAdmin } = require('../middleware/auth');
+
+// Todas las rutas requieren autenticación y rol de admin/cajero
+router.use(verifyToken, isAdmin);
 
 // Reporte general de ventas por período
 router.get('/ventas', reporteController.getReporteVentas);

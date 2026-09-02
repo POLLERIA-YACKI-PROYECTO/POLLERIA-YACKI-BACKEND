@@ -1,5 +1,6 @@
 // controllers/venta.controller.js
 const Venta = require('../models/Venta');
+const db = require('../config/database');
 
 exports.getAll = async (req, res) => {
   try {
