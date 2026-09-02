@@ -1,4 +1,4 @@
-// src/models/Pedido.js
+// models/Pedido.js
 const db = require('../config/database');
 
 class Pedido {
@@ -74,7 +74,6 @@ class Pedido {
     return { id: result.insertId, ...pedido };
   }
 
-  
   static async crearVenta(venta) {
     const { 
       pedido_id,
@@ -218,6 +217,41 @@ class Pedido {
         AND p.deleted_at IS NULL
       ORDER BY p.fecha_pago DESC
     `, [tipo_entrega]);
+    return rows;
+  }
+
+  // ✅ Obtener pedidos por usuario
+  static async findByUsuario(usuarioId) {
+    const [rows] = await db.query(`
+      SELECT p.*, 
+             u.nombre as usuario_nombre, 
+             u.rol as usuario_rol,
+             c.nombre as cliente_nombre_real
+      FROM pedidos p
+      LEFT JOIN usuarios u ON p.usuario_id = u.id
+      LEFT JOIN clientes c ON p.cliente_id = c.id
+      WHERE p.usuario_id = ? 
+        AND p.deleted_at IS NULL
+      ORDER BY p.id DESC
+    `, [usuarioId]);
+    return rows;
+  }
+
+  // ✅ Obtener pedidos entregados del mesero
+  static async findEntregadosByUsuario(usuarioId) {
+    const [rows] = await db.query(`
+      SELECT p.*, 
+             u.nombre as usuario_nombre, 
+             u.rol as usuario_rol,
+             c.nombre as cliente_nombre_real
+      FROM pedidos p
+      LEFT JOIN usuarios u ON p.usuario_id = u.id
+      LEFT JOIN clientes c ON p.cliente_id = c.id
+      WHERE p.estado = 'entregado'
+        AND p.usuario_id = ?
+        AND p.deleted_at IS NULL
+      ORDER BY p.fecha_pago DESC, p.created_at DESC
+    `, [usuarioId]);
     return rows;
   }
 }

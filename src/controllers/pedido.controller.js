@@ -1,14 +1,32 @@
-// src\controllers\pedido.controller.js
+// controllers/pedido.controller.js
 const Pedido = require('../models/Pedido');
 const db = require('../config/database');
 
 // Obtener todos los pedidos
 exports.getAll = async (req, res) => {
   try {
-    const pedidos = await Pedido.findAll();
+    const usuarioId = req.userId;
+    const userRol = req.userRol;
+    
+    console.log('📝 === OBTENIENDO PEDIDOS ===');
+    console.log('📝 Usuario ID:', usuarioId);
+    console.log('📝 Rol:', userRol);
+    
+    let pedidos;
+    
+    if (userRol === 'admin' || userRol === 'cajero') {
+      // Admin ve todos los pedidos
+      pedidos = await Pedido.findAll();
+    } else {
+      // Mesero ve SOLO sus pedidos
+      pedidos = await Pedido.findByUsuario(usuarioId);
+    }
+    
     pedidos.forEach(p => {
       if (typeof p.items === 'string') p.items = JSON.parse(p.items);
     });
+    
+    console.log(`✅ ${pedidos.length} pedidos encontrados`);
     res.json(pedidos);
   } catch (error) {
     console.error('Error en getAll pedidos:', error);
@@ -32,7 +50,7 @@ exports.getById = async (req, res) => {
   }
 };
 
-// ✅ CREAR PEDIDO - CORREGIDO
+// ✅ CREAR PEDIDO
 exports.create = async (req, res) => {
   try {
     console.log('📝 === CREANDO PEDIDO ===');
@@ -359,7 +377,7 @@ exports.delete = async (req, res) => {
   }
 };
 
-// Obtener pedidos pendientes
+// ✅ Obtener pedidos pendientes
 exports.getPendientes = async (req, res) => {
   try {
     const pedidos = await Pedido.findPendientes();
@@ -373,7 +391,7 @@ exports.getPendientes = async (req, res) => {
   }
 };
 
-// Obtener pedidos pagados
+// ✅ Obtener pedidos pagados (solo admin)
 exports.getPagados = async (req, res) => {
   try {
     const pedidos = await Pedido.findPagados();
@@ -387,7 +405,7 @@ exports.getPagados = async (req, res) => {
   }
 };
 
-// Obtener pedidos por tipo de entrega
+// ✅ Obtener pedidos por tipo de entrega
 exports.getByTipoEntrega = async (req, res) => {
   try {
     const { tipo } = req.params;
@@ -399,5 +417,67 @@ exports.getByTipoEntrega = async (req, res) => {
   } catch (error) {
     console.error('Error en getByTipoEntrega:', error);
     res.status(500).json({ error: 'Error al obtener pedidos por tipo de entrega' });
+  }
+};
+
+/// ✅ OBTENER PEDIDOS ENTREGADOS DEL MESERO (todos los que tienen estado 'entregado')
+exports.getPedidosPagadosMesero = async (req, res) => {
+  try {
+    const usuarioId = req.userId;
+    
+    console.log('📝 === PEDIDOS ENTREGADOS DEL MESERO ===');
+    console.log('📝 Mesero ID:', usuarioId);
+    
+    if (!usuarioId) {
+      return res.status(401).json({ 
+        success: false,
+        error: 'Usuario no autenticado' 
+      });
+    }
+    
+    // ✅ Obtener TODOS los pedidos con estado 'entregado' del mesero
+    // Sin importar si pagado = 1 o no
+    const [rows] = await db.query(`
+      SELECT p.*, 
+             u.nombre as usuario_nombre, 
+             u.rol as usuario_rol,
+             c.nombre as cliente_nombre_real
+      FROM pedidos p
+      LEFT JOIN usuarios u ON p.usuario_id = u.id
+      LEFT JOIN clientes c ON p.cliente_id = c.id
+      WHERE p.estado = 'entregado'
+        AND p.usuario_id = ?
+        AND p.deleted_at IS NULL
+      ORDER BY p.fecha_pago DESC, p.created_at DESC
+    `, [usuarioId]);
+    
+    console.log(`📝 Pedidos entregados encontrados: ${rows.length}`);
+    
+    // Mostrar detalles de cada pedido para depuración
+    rows.forEach((p, index) => {
+      console.log(`📝 Pedido ${index + 1}: ID=${p.id}, Tipo=${p.tipo_entrega}, Cliente=${p.cliente_nombre || 'Cliente'}, Pagado=${p.pagado}`);
+    });
+    
+    // Parsear items de cada pedido
+    rows.forEach(p => {
+      if (typeof p.items === 'string') {
+        try {
+          p.items = JSON.parse(p.items);
+        } catch (e) {
+          p.items = [];
+        }
+      }
+    });
+    
+    console.log(`✅ ${rows.length} pedidos entregados encontrados para el mesero`);
+    res.json(rows);
+    
+  } catch (error) {
+    console.error('❌ Error en getPedidosPagadosMesero:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Error al obtener pedidos entregados del mesero',
+      detalle: error.message 
+    });
   }
 };

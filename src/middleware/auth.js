@@ -1,4 +1,4 @@
-// src/middleware/auth.js
+// middleware/auth.js
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
@@ -75,9 +75,14 @@ exports.isAdmin = (req, res, next) => {
 };
 
 exports.isMesero = (req, res, next) => {
+  console.log('🔐 Verificando rol de mesero...');
+  console.log('📝 Rol del usuario:', req.userRol);
+  
   if (req.userRol === 'mesero') {
+    console.log('✅ Acceso permitido para mesero');
     next();
   } else {
+    console.log('❌ Acceso denegado - Se requiere rol de mesero');
     res.status(403).json({ 
       success: false,
       error: 'Acceso denegado. Se requiere rol de mesero' 

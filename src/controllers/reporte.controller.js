@@ -1,10 +1,14 @@
-// src\controllers\reporte.controller.js
+// src/controllers/reporte.controller.js
 const Venta = require('../models/Venta');
 const Usuario = require('../models/Usuario');
 
 exports.getReporteVentas = async (req, res) => {
   try {
     const { fechaInicio, fechaFin } = req.query;
+    
+    console.log('📝 === REPORTE DE VENTAS ===');
+    console.log('📝 Fecha Inicio:', fechaInicio);
+    console.log('📝 Fecha Fin:', fechaFin);
     
     if (!fechaInicio || !fechaFin) {
       return res.status(400).json({ 
@@ -13,6 +17,8 @@ exports.getReporteVentas = async (req, res) => {
     }
 
     const ventas = await Venta.findByFecha(fechaInicio, fechaFin);
+    
+    console.log(`📝 ${ventas.length} ventas encontradas`);
     
     if (!ventas || ventas.length === 0) {
       return res.json({
@@ -27,6 +33,17 @@ exports.getReporteVentas = async (req, res) => {
         detalle: []
       });
     }
+
+    // Parsear items de cada venta
+    ventas.forEach(v => {
+      if (typeof v.items === 'string') {
+        try {
+          v.items = JSON.parse(v.items);
+        } catch (e) {
+          v.items = [];
+        }
+      }
+    });
 
     // Calcular resumen general
     const totalVentas = ventas.length;
@@ -61,13 +78,7 @@ exports.getReporteVentas = async (req, res) => {
     // Calcular top productos
     const productosVendidos = {};
     ventas.forEach(v => {
-      let items = [];
-      try {
-        items = typeof v.items === 'string' ? JSON.parse(v.items) : (v.items || []);
-      } catch (e) {
-        items = [];
-      }
-      
+      let items = v.items || [];
       if (Array.isArray(items)) {
         items.forEach(item => {
           const nombre = item.nombre || item.producto_nombre || 'Producto';
@@ -103,16 +114,27 @@ exports.getReporteDiarioCajero = async (req, res) => {
   try {
     const { fecha } = req.query;
     
+    console.log('📝 === REPORTE DIARIO CAJERO ===');
+    console.log('📝 Fecha:', fecha);
+    
     if (!fecha) {
       return res.status(400).json({ error: 'Fecha es requerida' });
     }
 
-    // Obtener resumen diario
     const resumenDiario = await Venta.getResumenDiario(fecha);
-    
-    // Obtener ventas del día
     const ventas = await Venta.findByFecha(fecha, fecha);
     
+    // Parsear items
+    ventas.forEach(v => {
+      if (typeof v.items === 'string') {
+        try {
+          v.items = JSON.parse(v.items);
+        } catch (e) {
+          v.items = [];
+        }
+      }
+    });
+
     // Agrupar por usuario
     const porUsuario = {};
     ventas.forEach(v => {
@@ -158,10 +180,13 @@ exports.getReporteDiarioCajero = async (req, res) => {
   }
 };
 
-// Endpoint para reporte de ventas por cliente
 exports.getReportePorCliente = async (req, res) => {
   try {
     const { fechaInicio, fechaFin } = req.query;
+    
+    console.log('📝 === REPORTE POR CLIENTE ===');
+    console.log('📝 Fecha Inicio:', fechaInicio);
+    console.log('📝 Fecha Fin:', fechaFin);
     
     if (!fechaInicio || !fechaFin) {
       return res.status(400).json({ error: 'Fecha inicio y fin son requeridas' });
@@ -183,10 +208,13 @@ exports.getReportePorCliente = async (req, res) => {
   }
 };
 
-// Endpoint para ventas motorizadas
 exports.getReporteMotorizada = async (req, res) => {
   try {
     const { fechaInicio, fechaFin } = req.query;
+    
+    console.log('📝 === REPORTE MOTORIZADA ===');
+    console.log('📝 Fecha Inicio:', fechaInicio);
+    console.log('📝 Fecha Fin:', fechaFin);
     
     if (!fechaInicio || !fechaFin) {
       return res.status(400).json({ error: 'Fecha inicio y fin son requeridas' });
@@ -196,8 +224,21 @@ exports.getReporteMotorizada = async (req, res) => {
     
     // Filtrar ventas motorizadas
     const ventasMotorizadas = ventas.filter(v => 
-      v.tipo_entrega === 'motorizada' || v.motorizado_id || v.tipo === 'motorizada'
+      v.tipo_entrega === 'delivery' || 
+      v.tipo_entrega === 'motorizada' ||
+      v.tipo === 'motorizada'
     );
+
+    // Parsear items
+    ventasMotorizadas.forEach(v => {
+      if (typeof v.items === 'string') {
+        try {
+          v.items = JSON.parse(v.items);
+        } catch (e) {
+          v.items = [];
+        }
+      }
+    });
 
     res.json({
       periodo: { fechaInicio, fechaFin },

@@ -30,7 +30,7 @@ class Venta {
         usuario_id,
         mesa_id || null,
         cliente_id || null,
-        cliente_nombre || null,
+        cliente_nombre || 'Cliente',
         JSON.stringify(items),
         subtotal || 0,
         igv || 0,
@@ -55,6 +55,7 @@ class Venta {
       FROM ventas v
       LEFT JOIN usuarios u ON v.usuario_id = u.id
       LEFT JOIN clientes c ON v.cliente_id = c.id
+      WHERE v.deleted_at IS NULL
       ORDER BY v.id DESC
     `);
     return rows;
@@ -69,7 +70,7 @@ class Venta {
       FROM ventas v
       LEFT JOIN usuarios u ON v.usuario_id = u.id
       LEFT JOIN clientes c ON v.cliente_id = c.id
-      WHERE v.id = ?
+      WHERE v.id = ? AND v.deleted_at IS NULL
     `, [id]);
     return rows[0];
   }
@@ -82,7 +83,7 @@ class Venta {
       FROM ventas v
       LEFT JOIN usuarios u ON v.usuario_id = u.id
       LEFT JOIN clientes c ON v.cliente_id = c.id
-      WHERE v.usuario_id = ?
+      WHERE v.usuario_id = ? AND v.deleted_at IS NULL
       ORDER BY v.id DESC
     `, [usuarioId]);
     return rows;
@@ -96,12 +97,13 @@ class Venta {
       FROM ventas v
       LEFT JOIN usuarios u ON v.usuario_id = u.id
       LEFT JOIN clientes c ON v.cliente_id = c.id
-      WHERE v.tipo_entrega = ?
+      WHERE v.tipo_entrega = ? AND v.deleted_at IS NULL
       ORDER BY v.id DESC
     `, [tipo_entrega]);
     return rows;
   }
 
+  // ✅ Método findByFecha - CORREGIDO
   static async findByFecha(fechaInicio, fechaFin) {
     const [rows] = await db.query(`
       SELECT v.*, 
@@ -111,60 +113,55 @@ class Venta {
       FROM ventas v
       LEFT JOIN usuarios u ON v.usuario_id = u.id
       LEFT JOIN clientes c ON v.cliente_id = c.id
-      WHERE DATE(v.created_at) BETWEEN DATE(?) AND DATE(?)
-      ORDER BY v.created_at DESC
+      WHERE DATE(v.fecha_venta) BETWEEN ? AND ?
+        AND v.estado = 'completada'
+        AND v.deleted_at IS NULL
+      ORDER BY v.fecha_venta DESC
     `, [fechaInicio, fechaFin]);
     return rows;
   }
 
+  // ✅ Método getResumenDiario
   static async getResumenDiario(fecha) {
     const [rows] = await db.query(`
       SELECT 
         COUNT(*) as total_ventas,
-        COALESCE(SUM(total), 0) as total_recaudado,
-        COALESCE(AVG(total), 0) as promedio,
-        COALESCE(SUM(CASE WHEN metodo_pago = 'efectivo' THEN total ELSE 0 END), 0) as total_efectivo,
-        COALESCE(SUM(CASE WHEN metodo_pago = 'tarjeta' THEN total ELSE 0 END), 0) as total_tarjeta,
-        COALESCE(SUM(CASE WHEN metodo_pago = 'yape' THEN total ELSE 0 END), 0) as total_yape,
-        COALESCE(SUM(CASE WHEN metodo_pago = 'plin' THEN total ELSE 0 END), 0) as total_plin,
-        COALESCE(SUM(CASE WHEN metodo_pago = 'transferencia' THEN total ELSE 0 END), 0) as total_transferencia
+        SUM(total) as total_recaudado,
+        AVG(total) as promedio,
+        SUM(CASE WHEN metodo_pago = 'efectivo' THEN total ELSE 0 END) as total_efectivo,
+        SUM(CASE WHEN metodo_pago = 'tarjeta' THEN total ELSE 0 END) as total_tarjeta,
+        SUM(CASE WHEN metodo_pago = 'yape' THEN total ELSE 0 END) as total_yape,
+        SUM(CASE WHEN metodo_pago = 'plin' THEN total ELSE 0 END) as total_plin,
+        SUM(CASE WHEN metodo_pago = 'transferencia' THEN total ELSE 0 END) as total_transferencia
       FROM ventas 
-      WHERE estado = 'completada' AND DATE(created_at) = DATE(?)
+      WHERE DATE(fecha_venta) = ?
+        AND estado = 'completada'
+        AND deleted_at IS NULL
     `, [fecha]);
     return rows[0] || { total_ventas: 0, total_recaudado: 0, promedio: 0 };
   }
 
+  // ✅ Método getVentasPorCliente
   static async getVentasPorCliente(fechaInicio, fechaFin) {
     const [rows] = await db.query(`
       SELECT 
-        COALESCE(c.id, v.cliente_id) as cliente_id,
-        COALESCE(c.nombre, v.cliente_nombre, 'Consumidor Final') as cliente_nombre,
+        v.cliente_id,
+        v.cliente_nombre,
+        c.nombre as nombre_real,
         COUNT(*) as total_ventas,
-        COALESCE(SUM(v.total), 0) as total_gastado
+        SUM(v.total) as total_gastado,
+        AVG(v.total) as promedio,
+        MAX(v.total) as compra_maxima,
+        MIN(v.total) as compra_minima
       FROM ventas v
       LEFT JOIN clientes c ON v.cliente_id = c.id
-      WHERE DATE(v.created_at) BETWEEN DATE(?) AND DATE(?)
-      GROUP BY cliente_id, cliente_nombre
+      WHERE DATE(v.fecha_venta) BETWEEN ? AND ?
+        AND v.estado = 'completada'
+        AND v.deleted_at IS NULL
+      GROUP BY v.cliente_id, v.cliente_nombre, c.nombre
       ORDER BY total_gastado DESC
     `, [fechaInicio, fechaFin]);
     return rows;
-  }
-
-  static async getResumenPorUsuario(usuarioId) {
-    const [rows] = await db.query(`
-      SELECT 
-        COUNT(*) as total_ventas,
-        SUM(total) as total_recaudado,
-        SUM(CASE WHEN tipo_entrega = 'local' THEN total ELSE 0 END) as total_local,
-        SUM(CASE WHEN tipo_entrega = 'delivery' THEN total ELSE 0 END) as total_delivery,
-        SUM(CASE WHEN metodo_pago = 'efectivo' THEN total ELSE 0 END) as total_efectivo,
-        SUM(CASE WHEN metodo_pago = 'tarjeta' THEN total ELSE 0 END) as total_tarjeta,
-        SUM(CASE WHEN metodo_pago = 'yape' THEN total ELSE 0 END) as total_yape,
-        SUM(CASE WHEN metodo_pago = 'plin' THEN total ELSE 0 END) as total_plin
-      FROM ventas 
-      WHERE usuario_id = ? AND estado = 'completada'
-    `, [usuarioId]);
-    return rows[0] || { total_ventas: 0, total_recaudado: 0 };
   }
 }
 
