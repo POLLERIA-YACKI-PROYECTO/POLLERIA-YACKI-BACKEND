@@ -74,7 +74,7 @@ class Pedido {
     return { id: result.insertId, ...pedido };
   }
 
-  // ✅ NUEVO MÉTODO: Crear venta directamente
+  
   static async crearVenta(venta) {
     const { 
       pedido_id,

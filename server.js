@@ -28,6 +28,7 @@ app.use('/api/usuarios', require('./src/routes/usuario.routes'));
 app.use('/api/clientes', require('./src/routes/cliente.routes'));
 app.use('/api/pedidos', require('./src/routes/pedido.routes'));
 app.use('/api/reportes', require('./src/routes/reporte.routes'));
+app.use('/api/mesas', require('./src/routes/mesa.routes'));
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -42,4 +43,14 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`✅ Servidor corriendo en http://localhost:${PORT}`);
+  console.log(`📋 Rutas registradas:`);
+  console.log(`  - /api/auth`);
+  console.log(`  - /api/productos`);
+  console.log(`  - /api/categorias`);
+  console.log(`  - /api/ventas`);
+  console.log(`  - /api/usuarios`);
+  console.log(`  - /api/clientes`);
+  console.log(`  - /api/pedidos`);
+  console.log(`  - /api/reportes`);
+  console.log(`  - /api/mesas ✅ NUEVA`);
 });
