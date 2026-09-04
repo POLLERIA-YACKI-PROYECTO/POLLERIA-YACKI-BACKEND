@@ -237,7 +237,7 @@ class Pedido {
     return rows;
   }
 
-  // ✅ Obtener pedidos entregados del mesero
+  // Obtener pedidos entregados del mesero
   static async findEntregadosByUsuario(usuarioId) {
     const [rows] = await db.query(`
       SELECT p.*, 
