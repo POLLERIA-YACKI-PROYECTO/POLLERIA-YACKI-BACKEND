@@ -1,4 +1,4 @@
-// src\controllers\producto.controller.js
+// src/controllers/producto.controller.js
 
 const Producto = require('../models/Producto');
 
@@ -9,6 +9,17 @@ exports.getAll = async (req, res) => {
   } catch (error) {
     console.error('Error en getAll productos:', error);
     res.status(500).json({ error: 'Error al obtener productos' });
+  }
+};
+
+// ✅ NUEVO: Obtener solo productos disponibles
+exports.getDisponibles = async (req, res) => {
+  try {
+    const productos = await Producto.findAvailable();
+    res.json(productos);
+  } catch (error) {
+    console.error('Error en getDisponibles:', error);
+    res.status(500).json({ error: 'Error al obtener productos disponibles' });
   }
 };
 
@@ -39,11 +50,17 @@ exports.getById = async (req, res) => {
 
 exports.create = async (req, res) => {
   try {
-    const { categoria_id, nombre, precio, descripcion } = req.body;
+    const { categoria_id, nombre, precio, descripcion, stock } = req.body;
     if (!nombre || !precio) {
       return res.status(400).json({ error: 'Nombre y precio son requeridos' });
     }
-    const nuevoProducto = await Producto.create({ categoria_id, nombre, precio, descripcion });
+    const nuevoProducto = await Producto.create({ 
+      categoria_id, 
+      nombre, 
+      precio, 
+      descripcion,
+      stock: stock || 0
+    });
     res.status(201).json(nuevoProducto);
   } catch (error) {
     console.error('Error en create:', error);
@@ -54,8 +71,16 @@ exports.create = async (req, res) => {
 exports.update = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre, precio, descripcion, categoria_id } = req.body;
-    const actualizado = await Producto.update(id, { nombre, precio, descripcion, categoria_id });
+    const { nombre, precio, descripcion, categoria_id, stock, disponible, agotado } = req.body;
+    const actualizado = await Producto.update(id, { 
+      nombre, 
+      precio, 
+      descripcion, 
+      categoria_id,
+      stock,
+      disponible,
+      agotado
+    });
     if (actualizado) {
       const producto = await Producto.findById(id);
       res.json(producto);

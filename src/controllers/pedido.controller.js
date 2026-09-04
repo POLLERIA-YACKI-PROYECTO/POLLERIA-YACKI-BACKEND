@@ -1,8 +1,10 @@
-// controllers/pedido.controller.js
+// src/controllers/pedido.controller.js
 const Pedido = require('../models/Pedido');
 const db = require('../config/database');
 
-// Obtener todos los pedidos
+// ============================================
+// OBTENER TODOS LOS PEDIDOS
+// ============================================
 exports.getAll = async (req, res) => {
   try {
     const usuarioId = req.userId;
@@ -15,10 +17,8 @@ exports.getAll = async (req, res) => {
     let pedidos;
     
     if (userRol === 'admin' || userRol === 'cajero') {
-      // Admin ve todos los pedidos
       pedidos = await Pedido.findAll();
     } else {
-      // Mesero ve SOLO sus pedidos
       pedidos = await Pedido.findByUsuario(usuarioId);
     }
     
@@ -34,7 +34,9 @@ exports.getAll = async (req, res) => {
   }
 };
 
-// Obtener pedido por ID
+// ============================================
+// OBTENER PEDIDO POR ID
+// ============================================
 exports.getById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -50,7 +52,9 @@ exports.getById = async (req, res) => {
   }
 };
 
+// ============================================
 // ✅ CREAR PEDIDO
+// ============================================
 exports.create = async (req, res) => {
   try {
     console.log('📝 === CREANDO PEDIDO ===');
@@ -123,14 +127,12 @@ exports.create = async (req, res) => {
       pedidoCompleto.items = JSON.parse(pedidoCompleto.items);
     }
 
-    // ✅ Si el pedido ya está pagado, marcar como pagado y crear venta
+    // Si el pedido ya está pagado, marcar como pagado y crear venta
     if (pagado === true || pagado === 1) {
       console.log('📝 Pedido marcado como pagado directamente');
       
-      // Actualizar estado del pedido
       await Pedido.updateEstado(nuevoPedido.id, 'entregado');
       
-      // Crear la venta
       const ventaData = {
         pedido_id: nuevoPedido.id,
         usuario_id: usuario_id,
@@ -146,10 +148,7 @@ exports.create = async (req, res) => {
         observaciones: observaciones || null
       };
 
-      const ventaCreada = await Pedido.crearVenta(ventaData);
-      console.log('✅ Venta creada con ID:', ventaCreada.id);
-      
-      // Marcar el pedido como pagado
+      await Pedido.crearVenta(ventaData);
       await Pedido.marcarPagado(nuevoPedido.id, metodo_pago || 'efectivo');
     }
 
@@ -170,7 +169,9 @@ exports.create = async (req, res) => {
   }
 };
 
+// ============================================
 // ✅ MARCAR PEDIDO COMO PAGADO
+// ============================================
 exports.marcarPagado = async (req, res) => {
   try {
     const { id } = req.params;
@@ -188,7 +189,6 @@ exports.marcarPagado = async (req, res) => {
       });
     }
 
-    // 1. Buscar el pedido
     const [pedidos] = await db.query('SELECT * FROM pedidos WHERE id = ? AND deleted_at IS NULL', [id]);
     
     if (pedidos.length === 0) {
@@ -199,14 +199,7 @@ exports.marcarPagado = async (req, res) => {
     }
 
     const pedido = pedidos[0];
-    console.log('📝 Pedido encontrado:', {
-      id: pedido.id,
-      estado: pedido.estado,
-      pagado: pedido.pagado,
-      tipo_entrega: pedido.tipo_entrega
-    });
 
-    // Verificar si ya está pagado
     if (pedido.pagado === 1 || pedido.pagado === true) {
       return res.status(400).json({ 
         success: false,
@@ -222,34 +215,24 @@ exports.marcarPagado = async (req, res) => {
     }
 
     const tipoEntrega = pedido.tipo_entrega || 'local';
-    console.log('📝 Tipo de entrega:', tipoEntrega);
 
-    // 2. Actualizar el pedido
-    const [updateResult] = await db.query(
+    // Actualizar el pedido
+    await db.query(
       `UPDATE pedidos 
        SET estado = 'entregado', 
            pagado = 1, 
            metodo_pago = ?,
            fecha_pago = NOW(),
            updated_at = NOW() 
-       WHERE id = ? AND (pagado = 0 OR pagado IS NULL)`,
+       WHERE id = ?`,
       [metodo_pago, id]
     );
-    
-    console.log('📝 Filas afectadas en pedido:', updateResult.affectedRows);
-    
-    if (updateResult.affectedRows === 0) {
-      return res.status(400).json({ 
-        success: false,
-        error: 'No se pudo actualizar el pedido' 
-      });
-    }
 
-    // 3. Obtener el pedido actualizado
+    // Obtener el pedido actualizado
     const [pedidoActualizado] = await db.query('SELECT * FROM pedidos WHERE id = ?', [id]);
     const pedidoData = pedidoActualizado[0];
 
-    // 4. Parsear items
+    // Parsear items
     let items = pedidoData.items;
     if (typeof items === 'string') {
       try {
@@ -259,14 +242,11 @@ exports.marcarPagado = async (req, res) => {
       }
     }
 
-    // 5. Crear la venta (verificar si ya existe)
+    // Crear la venta
     const [ventaExistente] = await db.query('SELECT id FROM ventas WHERE pedido_id = ?', [id]);
     
-    let ventaId = null;
     if (ventaExistente.length === 0) {
-      console.log('📝 Creando venta con tipo_entrega:', tipoEntrega);
-      
-      const [ventaResult] = await db.query(
+      await db.query(
         `INSERT INTO ventas 
          (pedido_id, usuario_id, mesa_id, cliente_id, cliente_nombre, 
           items, subtotal, igv, descuento, total, 
@@ -290,15 +270,31 @@ exports.marcarPagado = async (req, res) => {
           pedidoData.observaciones || null
         ]
       );
-      ventaId = ventaResult.insertId;
-      console.log('✅ Venta creada con ID:', ventaId);
-    } else {
-      ventaId = ventaExistente[0].id;
-      console.log('✅ Venta ya existe con ID:', ventaId);
     }
 
-    // 6. Obtener el pedido completo con joins
-    const [pedidoFinal] = await db.query(`
+    res.json({
+      success: true,
+      message: 'Pedido marcado como pagado correctamente',
+      pedido: pedidoData
+    });
+
+  } catch (error) {
+    console.error('❌ Error en marcarPagado:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Error al marcar pedido como pagado'
+    });
+  }
+};
+
+// ============================================
+// ✅ OBTENER PEDIDOS PENDIENTES
+// ============================================
+exports.getPendientes = async (req, res) => {
+  try {
+    console.log('📝 === OBTENIENDO PEDIDOS PENDIENTES ===');
+    
+    const [rows] = await db.query(`
       SELECT p.*, 
              u.nombre as usuario_nombre, 
              u.rol as usuario_rol,
@@ -306,31 +302,165 @@ exports.marcarPagado = async (req, res) => {
       FROM pedidos p
       LEFT JOIN usuarios u ON p.usuario_id = u.id
       LEFT JOIN clientes c ON p.cliente_id = c.id
-      WHERE p.id = ?
-    `, [id]);
-
-    console.log('✅ Proceso completado exitosamente');
-
-    res.json({
-      success: true,
-      message: 'Pedido marcado como pagado correctamente',
-      pedido: pedidoFinal[0] || pedidoData,
-      venta_id: ventaId,
-      tipo_entrega: tipoEntrega
+      WHERE p.estado IN ('pendiente', 'preparando', 'listo')
+        AND (p.pagado = 0 OR p.pagado IS NULL)
+        AND p.deleted_at IS NULL
+      ORDER BY p.created_at DESC
+    `);
+    
+    rows.forEach(p => {
+      if (typeof p.items === 'string') {
+        try {
+          p.items = JSON.parse(p.items);
+        } catch (e) {
+          p.items = [];
+        }
+      }
     });
-
+    
+    console.log(`✅ ${rows.length} pedidos pendientes encontrados`);
+    res.json(rows);
   } catch (error) {
-    console.error('❌ Error en marcarPagado:', error);
-    console.error('❌ Stack:', error.stack);
+    console.error('❌ Error en getPendientes:', error);
+    res.status(500).json({ error: 'Error al obtener pedidos pendientes' });
+  }
+};
+
+// ============================================
+// ✅ OBTENER PEDIDOS PAGADOS
+// ============================================
+exports.getPagados = async (req, res) => {
+  try {
+    console.log('📝 === OBTENIENDO PEDIDOS PAGADOS ===');
+    
+    const [rows] = await db.query(`
+      SELECT p.*, 
+             u.nombre as usuario_nombre, 
+             u.rol as usuario_rol,
+             c.nombre as cliente_nombre_real
+      FROM pedidos p
+      LEFT JOIN usuarios u ON p.usuario_id = u.id
+      LEFT JOIN clientes c ON p.cliente_id = c.id
+      WHERE p.estado = 'entregado'
+        AND p.pagado = 1
+        AND p.deleted_at IS NULL
+      ORDER BY p.fecha_pago DESC, p.created_at DESC
+    `);
+    
+    rows.forEach(p => {
+      if (typeof p.items === 'string') {
+        try {
+          p.items = JSON.parse(p.items);
+        } catch (e) {
+          p.items = [];
+        }
+      }
+    });
+    
+    console.log(`✅ ${rows.length} pedidos pagados encontrados`);
+    res.json(rows);
+  } catch (error) {
+    console.error('❌ Error en getPagados:', error);
+    res.status(500).json({ error: 'Error al obtener pedidos pagados' });
+  }
+};
+
+// ============================================
+// ✅ OBTENER PEDIDOS POR TIPO DE ENTREGA
+// ============================================
+exports.getByTipoEntrega = async (req, res) => {
+  try {
+    const { tipo } = req.params;
+    
+    console.log(`📝 === OBTENIENDO PEDIDOS TIPO: ${tipo} ===`);
+    
+    const [rows] = await db.query(`
+      SELECT p.*, 
+             u.nombre as usuario_nombre, 
+             u.rol as usuario_rol,
+             c.nombre as cliente_nombre_real
+      FROM pedidos p
+      LEFT JOIN usuarios u ON p.usuario_id = u.id
+      LEFT JOIN clientes c ON p.cliente_id = c.id
+      WHERE p.tipo_entrega = ?
+        AND p.pagado = 1
+        AND p.deleted_at IS NULL
+      ORDER BY p.created_at DESC
+    `, [tipo]);
+    
+    rows.forEach(p => {
+      if (typeof p.items === 'string') {
+        try {
+          p.items = JSON.parse(p.items);
+        } catch (e) {
+          p.items = [];
+        }
+      }
+    });
+    
+    console.log(`✅ ${rows.length} pedidos tipo ${tipo} encontrados`);
+    res.json(rows);
+  } catch (error) {
+    console.error('❌ Error en getByTipoEntrega:', error);
+    res.status(500).json({ error: 'Error al obtener pedidos por tipo' });
+  }
+};
+
+// ============================================
+// ✅ OBTENER PEDIDOS ENTREGADOS DEL MESERO
+// ============================================
+exports.getPedidosPagadosMesero = async (req, res) => {
+  try {
+    const usuarioId = req.userId;
+    
+    console.log('📝 === PEDIDOS ENTREGADOS DEL MESERO ===');
+    console.log('📝 Mesero ID:', usuarioId);
+    
+    if (!usuarioId) {
+      return res.status(401).json({ 
+        success: false,
+        error: 'Usuario no autenticado' 
+      });
+    }
+    
+    const [rows] = await db.query(`
+      SELECT p.*, 
+             u.nombre as usuario_nombre, 
+             u.rol as usuario_rol,
+             c.nombre as cliente_nombre_real
+      FROM pedidos p
+      LEFT JOIN usuarios u ON p.usuario_id = u.id
+      LEFT JOIN clientes c ON p.cliente_id = c.id
+      WHERE p.estado = 'entregado'
+        AND p.usuario_id = ?
+        AND p.deleted_at IS NULL
+      ORDER BY p.fecha_pago DESC, p.created_at DESC
+    `, [usuarioId]);
+    
+    rows.forEach(p => {
+      if (typeof p.items === 'string') {
+        try {
+          p.items = JSON.parse(p.items);
+        } catch (e) {
+          p.items = [];
+        }
+      }
+    });
+    
+    console.log(`✅ ${rows.length} pedidos entregados encontrados para el mesero`);
+    res.json(rows);
+  } catch (error) {
+    console.error('❌ Error en getPedidosPagadosMesero:', error);
     res.status(500).json({ 
       success: false,
-      error: 'Error al marcar pedido como pagado',
-      detalle: error.message 
+      error: 'Error al obtener pedidos entregados del mesero'
     });
   }
 };
 
-// Actualizar estado del pedido
+// ============================================
+// ACTUALIZAR ESTADO DEL PEDIDO
+// ============================================
 exports.updateEstado = async (req, res) => {
   try {
     const { id } = req.params;
@@ -361,7 +491,9 @@ exports.updateEstado = async (req, res) => {
   }
 };
 
-// Eliminar pedido
+// ============================================
+// ELIMINAR PEDIDO
+// ============================================
 exports.delete = async (req, res) => {
   try {
     const { id } = req.params;
@@ -374,110 +506,5 @@ exports.delete = async (req, res) => {
   } catch (error) {
     console.error('Error en delete:', error);
     res.status(500).json({ error: 'Error al eliminar pedido' });
-  }
-};
-
-// ✅ Obtener pedidos pendientes
-exports.getPendientes = async (req, res) => {
-  try {
-    const pedidos = await Pedido.findPendientes();
-    pedidos.forEach(p => {
-      if (typeof p.items === 'string') p.items = JSON.parse(p.items);
-    });
-    res.json(pedidos);
-  } catch (error) {
-    console.error('Error en getPendientes:', error);
-    res.status(500).json({ error: 'Error al obtener pedidos pendientes' });
-  }
-};
-
-// ✅ Obtener pedidos pagados (solo admin)
-exports.getPagados = async (req, res) => {
-  try {
-    const pedidos = await Pedido.findPagados();
-    pedidos.forEach(p => {
-      if (typeof p.items === 'string') p.items = JSON.parse(p.items);
-    });
-    res.json(pedidos);
-  } catch (error) {
-    console.error('Error en getPagados:', error);
-    res.status(500).json({ error: 'Error al obtener pedidos pagados' });
-  }
-};
-
-// ✅ Obtener pedidos por tipo de entrega
-exports.getByTipoEntrega = async (req, res) => {
-  try {
-    const { tipo } = req.params;
-    const pedidos = await Pedido.findByTipoEntrega(tipo);
-    pedidos.forEach(p => {
-      if (typeof p.items === 'string') p.items = JSON.parse(p.items);
-    });
-    res.json(pedidos);
-  } catch (error) {
-    console.error('Error en getByTipoEntrega:', error);
-    res.status(500).json({ error: 'Error al obtener pedidos por tipo de entrega' });
-  }
-};
-
-/// ✅ OBTENER PEDIDOS ENTREGADOS DEL MESERO (todos los que tienen estado 'entregado')
-exports.getPedidosPagadosMesero = async (req, res) => {
-  try {
-    const usuarioId = req.userId;
-    
-    console.log('📝 === PEDIDOS ENTREGADOS DEL MESERO ===');
-    console.log('📝 Mesero ID:', usuarioId);
-    
-    if (!usuarioId) {
-      return res.status(401).json({ 
-        success: false,
-        error: 'Usuario no autenticado' 
-      });
-    }
-    
-    // ✅ Obtener TODOS los pedidos con estado 'entregado' del mesero
-    // Sin importar si pagado = 1 o no
-    const [rows] = await db.query(`
-      SELECT p.*, 
-             u.nombre as usuario_nombre, 
-             u.rol as usuario_rol,
-             c.nombre as cliente_nombre_real
-      FROM pedidos p
-      LEFT JOIN usuarios u ON p.usuario_id = u.id
-      LEFT JOIN clientes c ON p.cliente_id = c.id
-      WHERE p.estado = 'entregado'
-        AND p.usuario_id = ?
-        AND p.deleted_at IS NULL
-      ORDER BY p.fecha_pago DESC, p.created_at DESC
-    `, [usuarioId]);
-    
-    console.log(`📝 Pedidos entregados encontrados: ${rows.length}`);
-    
-    // Mostrar detalles de cada pedido para depuración
-    rows.forEach((p, index) => {
-      console.log(`📝 Pedido ${index + 1}: ID=${p.id}, Tipo=${p.tipo_entrega}, Cliente=${p.cliente_nombre || 'Cliente'}, Pagado=${p.pagado}`);
-    });
-    
-    // Parsear items de cada pedido
-    rows.forEach(p => {
-      if (typeof p.items === 'string') {
-        try {
-          p.items = JSON.parse(p.items);
-        } catch (e) {
-          p.items = [];
-        }
-      }
-    });
-    
-    console.log(`✅ ${rows.length} pedidos entregados encontrados para el mesero`);
-    res.json(rows);
-    
-  } catch (error) {
-    console.error('❌ Error en getPedidosPagadosMesero:', error);
-    res.status(500).json({ 
-      success: false,
-      error: 'Error al obtener pedidos entregados del mesero',
-      detalle: error.message 
-    });
   }
 };
