@@ -1,5 +1,6 @@
 // server.js
 const express = require('express');
+const path = require('path'); // ✅ IMPORTANTE: debe estar importado
 const dotenv = require('dotenv');
 const { securityMiddleware } = require('./src/config/security');
 const { swaggerUi, specs } = require('./src/config/swagger');
@@ -11,9 +12,15 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ============================================
-// MIDDLEWARES DE SEGURIDAD (incluye express.json)
+// MIDDLEWARES DE SEGURIDAD
 // ============================================
 securityMiddleware(app);
+
+// ============================================
+// ✅ ARCHIVOS ESTÁTICOS (IMÁGENES)
+// ============================================
+// Servir la carpeta uploads como estática
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ============================================
 // SWAGGER DOCUMENTATION
@@ -110,6 +117,7 @@ app.listen(PORT, () => {
   console.log(`✅ Servidor corriendo en http://localhost:${PORT}`);
   console.log(`📚 Documentación API: http://localhost:${PORT}/api/docs`);
   console.log(`🔒 Seguridad activada`);
+  console.log(`📁 Archivos estáticos: /uploads`);
 });
 
 process.on('SIGTERM', () => {
