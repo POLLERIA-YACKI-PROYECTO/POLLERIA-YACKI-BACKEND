@@ -1,7 +1,8 @@
-// models/Pedido.js
+// models/Pedido.js - COMPLETO Y CORREGIDO
 const db = require('../config/database');
 
 class Pedido {
+  // ✅ FIND ALL
   static async findAll() {
     const [rows] = await db.query(`
       SELECT p.*, 
@@ -17,6 +18,7 @@ class Pedido {
     return rows;
   }
 
+  // ✅ FIND BY ID - CORREGIDO
   static async findById(id) {
     const [rows] = await db.query(`
       SELECT p.*, 
@@ -31,6 +33,24 @@ class Pedido {
     return rows[0];
   }
 
+  // ✅ FIND BY USUARIO
+  static async findByUsuario(usuarioId) {
+    const [rows] = await db.query(`
+      SELECT p.*, 
+             u.nombre as usuario_nombre, 
+             u.rol as usuario_rol,
+             c.nombre as cliente_nombre_real
+      FROM pedidos p
+      LEFT JOIN usuarios u ON p.usuario_id = u.id
+      LEFT JOIN clientes c ON p.cliente_id = c.id
+      WHERE p.usuario_id = ? 
+        AND p.deleted_at IS NULL
+      ORDER BY p.id DESC
+    `, [usuarioId]);
+    return rows;
+  }
+
+  // ✅ CREATE - CORREGIDO
   static async create(pedido) {
     const { 
       mesa_id, 
@@ -49,15 +69,43 @@ class Pedido {
       pagado
     } = pedido;
     
+    let itemsJson = '[]';
+    
+    try {
+      if (Array.isArray(items) && items.length > 0) {
+        const itemsLimpios = items.map(item => {
+          let nombreLimpio = String(item.nombre || '').trim();
+          nombreLimpio = nombreLimpio.replace(/[\/\\"]/g, '-');
+          
+          return {
+            id: Number(item.id) || 0,
+            nombre: nombreLimpio,
+            precio: Number(item.precio) || 0,
+            cantidad: Number(item.cantidad) || 0,
+            subtotal: Number(item.subtotal) || (Number(item.precio) * Number(item.cantidad))
+          };
+        });
+        
+        const itemsString = JSON.stringify(itemsLimpios);
+        const parsed = JSON.parse(itemsString);
+        itemsJson = JSON.stringify(parsed);
+      }
+    } catch (error) {
+      console.error('❌ Error al procesar items:', error);
+      itemsJson = '[]';
+    }
+    
+    console.log('📝 Items JSON final:', itemsJson);
+    
     const [result] = await db.query(
       `INSERT INTO pedidos 
        (mesa_id, usuario_id, items, subtotal, igv, total, cliente_nombre, cliente_id, 
         tipo, tipo_entrega, estado, observaciones, metodo_pago, pagado) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, CAST(? AS JSON), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         mesa_id || null, 
         usuario_id, 
-        JSON.stringify(items), 
+        itemsJson, 
         subtotal || 0,
         igv || 0,
         total, 
@@ -74,6 +122,7 @@ class Pedido {
     return { id: result.insertId, ...pedido };
   }
 
+  // ✅ CREAR VENTA
   static async crearVenta(venta) {
     const { 
       pedido_id,
@@ -93,17 +142,35 @@ class Pedido {
       observaciones
     } = venta;
     
+    let itemsJson = '[]';
+    
+    try {
+      if (Array.isArray(items) && items.length > 0) {
+        const itemsLimpios = items.map(item => ({
+          id: Number(item.id) || 0,
+          nombre: String(item.nombre || '').trim().replace(/[\/\\"]/g, '-'),
+          precio: Number(item.precio) || 0,
+          cantidad: Number(item.cantidad) || 0,
+          subtotal: Number(item.subtotal) || (Number(item.precio) * Number(item.cantidad))
+        }));
+        itemsJson = JSON.stringify(itemsLimpios);
+      }
+    } catch (error) {
+      console.error('❌ Error al procesar items para venta:', error);
+      itemsJson = '[]';
+    }
+    
     const [result] = await db.query(
       `INSERT INTO ventas 
        (pedido_id, usuario_id, mesa_id, cliente_id, cliente_nombre, items, subtotal, igv, descuento, total, metodo_pago, numero_operacion, tipo_entrega, estado, observaciones) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, CAST(? AS JSON), ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         pedido_id || null,
         usuario_id,
         mesa_id || null,
         cliente_id || null,
         cliente_nombre || 'Cliente',
-        JSON.stringify(items),
+        itemsJson,
         subtotal || 0,
         igv || 0,
         descuento || 0,
@@ -118,39 +185,16 @@ class Pedido {
     return { id: result.insertId, ...venta };
   }
 
+  // ✅ ACTUALIZAR ESTADO
   static async updateEstado(id, estado) {
     const [result] = await db.query(
-      'UPDATE pedidos SET estado = ?, updated_at = NOW() WHERE id = ?',
+      'UPDATE pedidos SET estado = ?, updated_at = NOW() WHERE id = ? AND deleted_at IS NULL',
       [estado, id]
     );
     return result.affectedRows > 0;
   }
 
-  static async update(id, pedido) {
-    const { mesa_id, items, subtotal, igv, total, cliente_nombre, cliente_id, tipo, tipo_entrega, observaciones, estado } = pedido;
-    const [result] = await db.query(
-      `UPDATE pedidos 
-       SET mesa_id = ?, items = ?, subtotal = ?, igv = ?, total = ?, 
-           cliente_nombre = ?, cliente_id = ?, tipo = ?, tipo_entrega = ?, observaciones = ?, estado = ?, updated_at = NOW()
-       WHERE id = ?`,
-      [
-        mesa_id || null, 
-        JSON.stringify(items), 
-        subtotal || 0,
-        igv || 0,
-        total, 
-        cliente_nombre || 'Cliente', 
-        cliente_id || null,
-        tipo || 'local',
-        tipo_entrega || 'local',
-        observaciones || null,
-        estado || 'pendiente',
-        id
-      ]
-    );
-    return result.affectedRows > 0;
-  }
-
+  // ✅ MARCAR PAGADO
   static async marcarPagado(id, metodo_pago) {
     const [result] = await db.query(
       `UPDATE pedidos 
@@ -158,17 +202,22 @@ class Pedido {
            metodo_pago = ?,
            fecha_pago = NOW(),
            updated_at = NOW() 
-       WHERE id = ?`,
+       WHERE id = ? AND deleted_at IS NULL`,
       [metodo_pago, id]
     );
     return result.affectedRows > 0;
   }
 
+  // ✅ ELIMINAR (SOFT DELETE)
   static async delete(id) {
-    const [result] = await db.query('UPDATE pedidos SET deleted_at = NOW() WHERE id = ?', [id]);
+    const [result] = await db.query(
+      'UPDATE pedidos SET deleted_at = NOW() WHERE id = ?',
+      [id]
+    );
     return result.affectedRows > 0;
   }
 
+  // ✅ FIND PENDIENTES
   static async findPendientes() {
     const [rows] = await db.query(`
       SELECT p.*, 
@@ -186,6 +235,7 @@ class Pedido {
     return rows;
   }
 
+  // ✅ FIND PAGADOS
   static async findPagados() {
     const [rows] = await db.query(`
       SELECT p.*, 
@@ -203,6 +253,7 @@ class Pedido {
     return rows;
   }
 
+  // ✅ FIND BY TIPO ENTREGA
   static async findByTipoEntrega(tipo_entrega) {
     const [rows] = await db.query(`
       SELECT p.*, 
@@ -220,24 +271,7 @@ class Pedido {
     return rows;
   }
 
-  // ✅ Obtener pedidos por usuario
-  static async findByUsuario(usuarioId) {
-    const [rows] = await db.query(`
-      SELECT p.*, 
-             u.nombre as usuario_nombre, 
-             u.rol as usuario_rol,
-             c.nombre as cliente_nombre_real
-      FROM pedidos p
-      LEFT JOIN usuarios u ON p.usuario_id = u.id
-      LEFT JOIN clientes c ON p.cliente_id = c.id
-      WHERE p.usuario_id = ? 
-        AND p.deleted_at IS NULL
-      ORDER BY p.id DESC
-    `, [usuarioId]);
-    return rows;
-  }
-
-  // ✅ Obtener pedidos entregados del mesero
+  // ✅ FIND ENTREGADOS POR USUARIO
   static async findEntregadosByUsuario(usuarioId) {
     const [rows] = await db.query(`
       SELECT p.*, 

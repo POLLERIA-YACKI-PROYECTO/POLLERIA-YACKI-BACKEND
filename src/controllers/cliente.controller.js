@@ -1,4 +1,4 @@
-// src\controllers\cliente.controller.js
+// src/controllers/cliente.controller.js
 const Cliente = require('../models/Cliente');
 
 // Obtener todos los clientes
@@ -42,38 +42,69 @@ exports.getById = async (req, res) => {
   }
 };
 
-// Crear cliente
+// ✅ CREAR CLIENTE - CORREGIDO
 exports.create = async (req, res) => {
   try {
+    console.log('📝 === CREANDO CLIENTE ===');
+    console.log('📝 Body recibido:', req.body);
+    
     const { nombre, apellido, dni, telefono, email, direccion } = req.body;
     
-    if (!nombre) {
-      return res.status(400).json({ error: 'El nombre es requerido' });
+    // ✅ Validar que el nombre existe
+    if (!nombre || nombre.trim() === '') {
+      console.log('❌ Nombre es requerido');
+      return res.status(400).json({ 
+        success: false,
+        error: 'El nombre es requerido' 
+      });
     }
 
-    if (dni) {
-      const existe = await Cliente.findByDni(dni);
+    // ✅ Validar DNI (si se proporciona, debe tener 8 dígitos)
+    if (dni && dni.trim() !== '') {
+      const dniLimpio = dni.trim();
+      if (!/^[0-9]{8}$/.test(dniLimpio)) {
+        console.log('❌ DNI inválido:', dniLimpio);
+        return res.status(400).json({ 
+          success: false,
+          error: 'El DNI debe tener 8 dígitos' 
+        });
+      }
+      
+      // Verificar si el DNI ya existe
+      const existe = await Cliente.findByDni(dniLimpio);
       if (existe) {
-        return res.status(400).json({ error: 'El DNI ya está registrado' });
+        console.log('❌ DNI ya registrado:', dniLimpio);
+        return res.status(400).json({ 
+          success: false,
+          error: 'El DNI ya está registrado' 
+        });
       }
     }
 
+    // ✅ Crear el cliente
     const nuevoCliente = await Cliente.create({
-      nombre,
-      apellido: apellido || null,
-      dni: dni || null,
-      telefono: telefono || null,
-      email: email || null,
-      direccion: direccion || null
+      nombre: nombre.trim(),
+      apellido: apellido ? apellido.trim() : null,
+      dni: dni && dni.trim() !== '' ? dni.trim() : null,
+      telefono: telefono ? telefono.trim() : null,
+      email: email ? email.trim() : null,
+      direccion: direccion ? direccion.trim() : null
     });
 
+    console.log('✅ Cliente creado:', nuevoCliente);
+
     res.status(201).json({
+      success: true,
       message: 'Cliente creado correctamente',
       cliente: nuevoCliente
     });
   } catch (error) {
-    console.error('Error en create cliente:', error);
-    res.status(500).json({ error: 'Error al crear cliente' });
+    console.error('❌ Error en create cliente:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Error al crear cliente',
+      detalle: error.message 
+    });
   }
 };
 
@@ -88,31 +119,61 @@ exports.update = async (req, res) => {
       return res.status(404).json({ error: 'Cliente no encontrado' });
     }
 
-    if (!nombre) {
-      return res.status(400).json({ error: 'El nombre es requerido' });
+    // Validar nombre
+    if (!nombre || nombre.trim() === '') {
+      return res.status(400).json({ 
+        success: false,
+        error: 'El nombre es requerido' 
+      });
+    }
+
+    // Validar DNI si se proporciona
+    if (dni && dni.trim() !== '') {
+      const dniLimpio = dni.trim();
+      if (!/^[0-9]{8}$/.test(dniLimpio)) {
+        return res.status(400).json({ 
+          success: false,
+          error: 'El DNI debe tener 8 dígitos' 
+        });
+      }
+      
+      const existe = await Cliente.findByDni(dniLimpio);
+      if (existe && existe.id !== parseInt(id)) {
+        return res.status(400).json({ 
+          success: false,
+          error: 'El DNI ya está registrado por otro cliente' 
+        });
+      }
     }
 
     const actualizado = await Cliente.update(id, {
-      nombre,
-      apellido: apellido || null,
-      dni: dni || null,
-      telefono: telefono || null,
-      email: email || null,
-      direccion: direccion || null
+      nombre: nombre.trim(),
+      apellido: apellido ? apellido.trim() : null,
+      dni: dni && dni.trim() !== '' ? dni.trim() : null,
+      telefono: telefono ? telefono.trim() : null,
+      email: email ? email.trim() : null,
+      direccion: direccion ? direccion.trim() : null
     });
 
     if (actualizado) {
       const clienteActualizado = await Cliente.findById(id);
       res.json({
+        success: true,
         message: 'Cliente actualizado correctamente',
         cliente: clienteActualizado
       });
     } else {
-      res.status(400).json({ error: 'No se pudo actualizar el cliente' });
+      res.status(400).json({ 
+        success: false,
+        error: 'No se pudo actualizar el cliente' 
+      });
     }
   } catch (error) {
     console.error('Error en update cliente:', error);
-    res.status(500).json({ error: 'Error al actualizar cliente' });
+    res.status(500).json({ 
+      success: false,
+      error: 'Error al actualizar cliente' 
+    });
   }
 };
 
@@ -122,17 +183,29 @@ exports.delete = async (req, res) => {
     const { id } = req.params;
     const cliente = await Cliente.findById(id);
     if (!cliente) {
-      return res.status(404).json({ error: 'Cliente no encontrado' });
+      return res.status(404).json({ 
+        success: false,
+        error: 'Cliente no encontrado' 
+      });
     }
 
     const eliminado = await Cliente.delete(id);
     if (eliminado) {
-      res.json({ message: 'Cliente eliminado correctamente' });
+      res.json({ 
+        success: true,
+        message: 'Cliente eliminado correctamente' 
+      });
     } else {
-      res.status(400).json({ error: 'No se pudo eliminar el cliente' });
+      res.status(400).json({ 
+        success: false,
+        error: 'No se pudo eliminar el cliente' 
+      });
     }
   } catch (error) {
     console.error('Error en delete cliente:', error);
-    res.status(500).json({ error: 'Error al eliminar cliente' });
+    res.status(500).json({ 
+      success: false,
+      error: 'Error al eliminar cliente' 
+    });
   }
 };

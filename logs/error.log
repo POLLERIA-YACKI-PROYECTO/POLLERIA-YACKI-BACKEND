@@ -1,0 +1,36 @@
+[ERROR] 2026-09-07T20:31:26.494Z - ❌ Error en query: Invalid JSON text: "Missing a name for object member." at position 2 in value for column 'pedidos.items'.
+[ERROR] 2026-09-07T20:31:26.496Z - SQL: INSERT INTO pedidos 
+       (mesa_id, usuario_id, items, subtotal, igv, total, cliente_nombre, cliente_id, 
+        tipo, tipo_entrega, estado, observaciones, metodo_pago, pagado) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+[ERROR] 2026-09-07T20:31:26.500Z - Params: [null,3,"[{\"id\":11,\"nombre\":\"Mostro Ala\",\"precio\":13,\"cantidad\":1,\"subtotal\":13}]",13,2.34,15.34,"Cliente",null,"local","delivery","pendiente",null,null,0]
+[ERROR] 2026-09-07T20:34:40.716Z - ❌ Error en query: Invalid JSON text: "Missing a name for object member." at position 2 in value for column 'pedidos.items'.
+[ERROR] 2026-09-07T20:34:40.716Z - SQL: INSERT INTO pedidos 
+       (mesa_id, usuario_id, items, subtotal, igv, total, cliente_nombre, cliente_id, 
+        tipo, tipo_entrega, estado, observaciones, metodo_pago, pagado) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+[ERROR] 2026-09-07T20:34:40.717Z - Params: [null,3,"[{\"id\":2,\"nombre\":\"1/2 pollo\",\"precio\":23,\"cantidad\":1,\"subtotal\":23}]",23,4.14,27.14,"Cliente",null,"local","local","pendiente",null,null,0]
+[ERROR] 2026-09-07T20:36:54.379Z - ❌ Error en query: Invalid JSON text: "Missing a name for object member." at position 2 in value for column 'pedidos.items'.
+[ERROR] 2026-09-07T20:36:54.380Z - SQL: INSERT INTO pedidos 
+       (mesa_id, usuario_id, items, subtotal, igv, total, cliente_nombre, cliente_id, 
+        tipo, tipo_entrega, estado, observaciones, metodo_pago, pagado) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+[ERROR] 2026-09-07T20:36:54.380Z - Params: [null,3,"[{\"id\":3,\"nombre\":\"1 pollo\",\"precio\":45,\"cantidad\":1,\"subtotal\":45}]",45,8.1,53.1,"Cliente",null,"local","delivery","pendiente",null,null,0]
+[ERROR] 2026-09-07T20:38:55.464Z - ❌ Error en query: Invalid JSON text: "Missing a name for object member." at position 2 in value for column 'pedidos.items'.
+[ERROR] 2026-09-07T20:38:55.465Z - SQL: INSERT INTO pedidos 
+       (mesa_id, usuario_id, items, subtotal, igv, total, cliente_nombre, cliente_id, 
+        tipo, tipo_entrega, estado, observaciones, metodo_pago, pagado) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+[ERROR] 2026-09-07T20:38:55.466Z - Params: [null,3,"[{\"id\":3,\"nombre\":\"1 pollo\",\"precio\":45,\"cantidad\":1,\"subtotal\":45}]",45,8.1,53.1,"Cliente",null,"local","delivery","pendiente",null,null,0]
+[ERROR] 2026-09-07T20:41:53.404Z - ❌ Error en query: Invalid JSON text: "Missing a name for object member." at position 2 in value for column 'pedidos.items'.
+[ERROR] 2026-09-07T20:41:53.405Z - SQL: INSERT INTO pedidos 
+     (mesa_id, usuario_id, items, subtotal, igv, total, cliente_nombre, cliente_id, 
+      tipo, tipo_entrega, estado, observaciones, metodo_pago, pagado) 
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+[ERROR] 2026-09-07T20:41:53.406Z - Params: [null,3,"[{\"id\":2,\"nombre\":\"1/2 pollo\",\"precio\":23,\"cantidad\":1,\"subtotal\":23}]",23,4.14,27.14,"adrian",null,"local","local","pendiente",null,null,0]
+[ERROR] 2026-09-07T20:44:57.909Z - ❌ Error en query: Invalid JSON text: "Missing a name for object member." at position 2 in value for column 'pedidos.items'.
+[ERROR] 2026-09-07T20:44:57.910Z - SQL: INSERT INTO pedidos 
+     (mesa_id, usuario_id, items, subtotal, igv, total, cliente_nombre, cliente_id, 
+      tipo, tipo_entrega, estado, observaciones, metodo_pago, pagado) 
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+[ERROR] 2026-09-07T20:44:57.910Z - Params: [null,3,"[{\"id\":2,\"nombre\":\"1-2 pollo\",\"precio\":23,\"cantidad\":1,\"subtotal\":23}]",23,4.14,27.14,"adrian",null,"local","local","pendiente",null,null,0]

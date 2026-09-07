@@ -23,7 +23,13 @@ exports.getAll = async (req, res) => {
     }
     
     pedidos.forEach(p => {
-      if (typeof p.items === 'string') p.items = JSON.parse(p.items);
+      if (typeof p.items === 'string') {
+        try {
+          p.items = JSON.parse(p.items);
+        } catch (e) {
+          p.items = [];
+        }
+      }
     });
     
     console.log(`✅ ${pedidos.length} pedidos encontrados`);
@@ -44,7 +50,13 @@ exports.getById = async (req, res) => {
     if (!pedido) {
       return res.status(404).json({ error: 'Pedido no encontrado' });
     }
-    if (typeof pedido.items === 'string') pedido.items = JSON.parse(pedido.items);
+    if (typeof pedido.items === 'string') {
+      try {
+        pedido.items = JSON.parse(pedido.items);
+      } catch (e) {
+        pedido.items = [];
+      }
+    }
     res.json(pedido);
   } catch (error) {
     console.error('Error en getById:', error);
@@ -53,7 +65,7 @@ exports.getById = async (req, res) => {
 };
 
 // ============================================
-// ✅ CREAR PEDIDO
+// ✅ CREAR PEDIDO - CORREGIDO
 // ============================================
 exports.create = async (req, res) => {
   try {
@@ -86,26 +98,71 @@ exports.create = async (req, res) => {
       return res.status(400).json({ error: 'El pedido debe tener al menos un item' });
     }
 
-    // Calcular subtotal
+    // ✅ PROCESAR ITEMS CORRECTAMENTE
+    let itemsProcesados = [];
+    
+    try {
+      // Si items es un array, procesarlo
+      if (Array.isArray(items)) {
+        itemsProcesados = items.map(item => ({
+          id: Number(item.id) || 0,
+          nombre: String(item.nombre || '').trim(),
+          precio: Number(item.precio) || 0,
+          cantidad: Number(item.cantidad) || 0,
+          subtotal: Number(item.subtotal) || (Number(item.precio) * Number(item.cantidad))
+        }));
+      } 
+      // Si items es un string, parsearlo
+      else if (typeof items === 'string') {
+        try {
+          const parsed = JSON.parse(items);
+          if (Array.isArray(parsed)) {
+            itemsProcesados = parsed.map(item => ({
+              id: Number(item.id) || 0,
+              nombre: String(item.nombre || '').trim(),
+              precio: Number(item.precio) || 0,
+              cantidad: Number(item.cantidad) || 0,
+              subtotal: Number(item.subtotal) || (Number(item.precio) * Number(item.cantidad))
+            }));
+          }
+        } catch (e) {
+          console.error('❌ Error al parsear items string:', e);
+          itemsProcesados = [];
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error al procesar items:', error);
+      itemsProcesados = [];
+    }
+
+    // ✅ Verificar que itemsProcesados no esté vacío
+    if (itemsProcesados.length === 0) {
+      console.log('❌ No se pudieron procesar los items correctamente');
+      return res.status(400).json({ 
+        success: false,
+        error: 'Los items del pedido no son válidos' 
+      });
+    }
+
+    // ✅ Calcular subtotal
     let subtotal = 0;
-    items.forEach(item => {
-      const precio = typeof item.precio === 'string' ? parseFloat(item.precio) : item.precio;
-      const cantidad = typeof item.cantidad === 'string' ? parseInt(item.cantidad) : item.cantidad;
-      subtotal += precio * cantidad;
+    itemsProcesados.forEach(item => {
+      subtotal += Number(item.precio) * Number(item.cantidad);
     });
     
     const igv = subtotal * 0.18;
     const totalFinal = total || (subtotal + igv);
 
+    console.log('📝 Items procesados:', JSON.stringify(itemsProcesados));
     console.log('📝 Subtotal:', subtotal);
     console.log('📝 IGV:', igv);
     console.log('📝 Total:', totalFinal);
 
-    // Crear el pedido
+    // ✅ Crear el pedido - PASAR EL ARRAY DIRECTAMENTE
     const nuevoPedido = await Pedido.create({
       usuario_id,
       mesa_id: mesa_id || null,
-      items,
+      items: itemsProcesados, // ✅ PASAMOS EL ARRAY, NO EL STRING
       subtotal,
       igv,
       total: totalFinal,
@@ -124,7 +181,11 @@ exports.create = async (req, res) => {
     // Obtener el pedido completo
     const pedidoCompleto = await Pedido.findById(nuevoPedido.id);
     if (pedidoCompleto && typeof pedidoCompleto.items === 'string') {
-      pedidoCompleto.items = JSON.parse(pedidoCompleto.items);
+      try {
+        pedidoCompleto.items = JSON.parse(pedidoCompleto.items);
+      } catch (e) {
+        pedidoCompleto.items = [];
+      }
     }
 
     // Si el pedido ya está pagado, marcar como pagado y crear venta
@@ -138,7 +199,7 @@ exports.create = async (req, res) => {
         usuario_id: usuario_id,
         cliente_nombre: cliente_nombre || 'Cliente',
         cliente_id: cliente_id || null,
-        items: items,
+        items: itemsProcesados,
         subtotal: subtotal,
         igv: igv,
         total: totalFinal,
@@ -224,12 +285,12 @@ exports.marcarPagado = async (req, res) => {
            metodo_pago = ?,
            fecha_pago = NOW(),
            updated_at = NOW() 
-       WHERE id = ?`,
+       WHERE id = ? AND deleted_at IS NULL`,
       [metodo_pago, id]
     );
 
     // Obtener el pedido actualizado
-    const [pedidoActualizado] = await db.query('SELECT * FROM pedidos WHERE id = ?', [id]);
+    const [pedidoActualizado] = await db.query('SELECT * FROM pedidos WHERE id = ? AND deleted_at IS NULL', [id]);
     const pedidoData = pedidoActualizado[0];
 
     // Parsear items
@@ -243,7 +304,7 @@ exports.marcarPagado = async (req, res) => {
     }
 
     // Crear la venta
-    const [ventaExistente] = await db.query('SELECT id FROM ventas WHERE pedido_id = ?', [id]);
+    const [ventaExistente] = await db.query('SELECT id FROM ventas WHERE pedido_id = ? AND deleted_at IS NULL', [id]);
     
     if (ventaExistente.length === 0) {
       await db.query(
@@ -468,14 +529,21 @@ exports.updateEstado = async (req, res) => {
     
     const estadosValidos = ['pendiente', 'preparando', 'listo', 'entregado', 'cancelado'];
     if (!estadosValidos.includes(estado)) {
-      return res.status(400).json({ error: 'Estado inválido' });
+      return res.status(400).json({ 
+        success: false,
+        error: 'Estado inválido. Los estados válidos son: ' + estadosValidos.join(', ')
+      });
     }
 
     const actualizado = await Pedido.updateEstado(id, estado);
     if (actualizado) {
       const pedido = await Pedido.findById(id);
       if (pedido && typeof pedido.items === 'string') {
-        pedido.items = JSON.parse(pedido.items);
+        try {
+          pedido.items = JSON.parse(pedido.items);
+        } catch (e) {
+          pedido.items = [];
+        }
       }
       res.json({
         success: true,
@@ -483,11 +551,17 @@ exports.updateEstado = async (req, res) => {
         pedido
       });
     } else {
-      res.status(404).json({ error: 'Pedido no encontrado' });
+      res.status(404).json({ 
+        success: false,
+        error: 'Pedido no encontrado' 
+      });
     }
   } catch (error) {
     console.error('Error en updateEstado:', error);
-    res.status(500).json({ error: 'Error al actualizar estado' });
+    res.status(500).json({ 
+      success: false,
+      error: 'Error al actualizar estado' 
+    });
   }
 };
 
@@ -499,12 +573,21 @@ exports.delete = async (req, res) => {
     const { id } = req.params;
     const eliminado = await Pedido.delete(id);
     if (eliminado) {
-      res.json({ success: true, message: 'Pedido eliminado correctamente' });
+      res.json({ 
+        success: true, 
+        message: 'Pedido eliminado correctamente' 
+      });
     } else {
-      res.status(404).json({ error: 'Pedido no encontrado' });
+      res.status(404).json({ 
+        success: false,
+        error: 'Pedido no encontrado' 
+      });
     }
   } catch (error) {
     console.error('Error en delete:', error);
-    res.status(500).json({ error: 'Error al eliminar pedido' });
+    res.status(500).json({ 
+      success: false,
+      error: 'Error al eliminar pedido' 
+    });
   }
 };
