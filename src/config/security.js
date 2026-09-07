@@ -1,4 +1,5 @@
 // src/config/security.js
+const express = require('express');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
@@ -20,8 +21,8 @@ const corsOptions = {
 
 // Rate limiting por IP
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100, // 100 peticiones por IP
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   message: {
     success: false,
     error: 'Demasiadas peticiones desde esta IP, por favor intenta más tarde'
@@ -74,57 +75,12 @@ const sanitizeInput = (req, res, next) => {
   next();
 };
 
-// Validación de entrada (versión simple)
-const validateBody = (rules) => {
-  return (req, res, next) => {
-    const errors = [];
-    
-    for (const [field, rule] of Object.entries(rules)) {
-      const value = req.body[field];
-      
-      if (rule.required && (!value || value.trim() === '')) {
-        errors.push(`El campo ${field} es requerido`);
-      }
-      
-      if (rule.type === 'number' && value && isNaN(value)) {
-        errors.push(`El campo ${field} debe ser un número`);
-      }
-      
-      if (rule.type === 'email' && value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-        errors.push(`El campo ${field} debe ser un email válido`);
-      }
-      
-      if (rule.type === 'dni' && value && !/^[0-9]{8}$/.test(value)) {
-        errors.push(`El campo ${field} debe ser un DNI válido (8 dígitos)`);
-      }
-      
-      if (rule.type === 'phone' && value && !/^[0-9]{9}$/.test(value)) {
-        errors.push(`El campo ${field} debe ser un teléfono válido (9 dígitos)`);
-      }
-      
-      if (rule.min && value && value.length < rule.min) {
-        errors.push(`El campo ${field} debe tener al menos ${rule.min} caracteres`);
-      }
-      
-      if (rule.max && value && value.length > rule.max) {
-        errors.push(`El campo ${field} debe tener máximo ${rule.max} caracteres`);
-      }
-    }
-    
-    if (errors.length > 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Error de validación',
-        details: errors
-      });
-    }
-    
-    next();
-  };
-};
-
 // Middleware de seguridad completo
 const securityMiddleware = (app) => {
+  // IMPORTANTE: express.json() DEBE ESTAR ANTES DE CUALQUIER RUTA
+  app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+  
   // Helmet para headers de seguridad
   app.use(helmet({
     contentSecurityPolicy: {
@@ -177,7 +133,6 @@ const securityMiddleware = (app) => {
 
 module.exports = {
   securityMiddleware,
-  validateBody,
   limiter,
   authLimiter,
   corsOptions,
