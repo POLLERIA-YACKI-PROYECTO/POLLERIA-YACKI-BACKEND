@@ -5,7 +5,23 @@ const pedidoController = require('../controllers/pedido.controller');
 const { verifyToken, isAdmin } = require('../middleware/auth');
 
 // ============================================
-// ✅ RUTAS PÚBLICAS (Requieren autenticación)
+// ✅ RUTAS ESPECÍFICAS PRIMERO (sin parámetros)
+// ============================================
+
+// Obtener pedidos pendientes
+router.get('/pendientes', verifyToken, pedidoController.getPendientes);
+
+// Obtener pedidos pagados
+router.get('/pagados', verifyToken, pedidoController.getPagados);
+
+// Obtener pedidos entregados del mesero
+router.get('/entregados/mesero', verifyToken, pedidoController.getPedidosPagadosMesero);
+
+// Obtener pedidos por tipo de entrega
+router.get('/tipo/:tipo', verifyToken, pedidoController.getByTipoEntrega);
+
+// ============================================
+// 🔒 RUTAS CON PARÁMETROS (después de las específicas)
 // ============================================
 
 // Obtener todos los pedidos
@@ -13,22 +29,6 @@ router.get('/', verifyToken, pedidoController.getAll);
 
 // Obtener pedido por ID
 router.get('/:id', verifyToken, pedidoController.getById);
-
-// ✅ Obtener pedidos pendientes
-router.get('/pendientes', verifyToken, pedidoController.getPendientes);
-
-// ✅ Obtener pedidos pagados
-router.get('/pagados', verifyToken, pedidoController.getPagados);
-
-// ✅ Obtener pedidos por tipo de entrega
-router.get('/tipo/:tipo', verifyToken, pedidoController.getByTipoEntrega);
-
-// ✅ Obtener pedidos entregados del mesero
-router.get('/entregados/mesero', verifyToken, pedidoController.getPedidosPagadosMesero);
-
-// ============================================
-// 🔒 RUTAS PROTEGIDAS (Requieren autenticación)
-// ============================================
 
 // Crear pedido
 router.post('/', verifyToken, pedidoController.create);
