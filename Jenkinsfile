@@ -1,10 +1,10 @@
 pipeline {
     agent any
 
-    tools {
-        // Si tienes Node.js instalado como herramienta en Jenkins
-        // nodejs 'NodeJS-20'  // Descomenta si tienes Node.js configurado como herramienta
-    }
+    // Eliminar la sección tools o comentarla si no tienes Node.js configurado
+    // tools {
+    //     nodejs 'NodeJS-20'
+    // }
 
     environment {
         // Variables de entorno
@@ -31,7 +31,7 @@ pipeline {
                 cleanWs()
                 git branch: "${env.BRANCH}", 
                     url: "${env.REPO_URL}",
-                    credentialsId: 'github-credentials' // Configurar en Jenkins
+                    credentialsId: 'Ardamins'
                 echo "✅ Código clonado exitosamente"
             }
         }
@@ -53,14 +53,8 @@ pipeline {
         stage('🔍 Análisis de Seguridad') {
             steps {
                 echo "🔍 Escaneando vulnerabilidades..."
-                bat 'npm audit --json > npm-audit-report.json || true'
+                bat 'npm audit --json > npm-audit-report.json || echo "{}" > npm-audit-report.json'
                 echo "✅ Análisis de seguridad completado"
-                
-                // Mostrar resumen de vulnerabilidades (opcional)
-                script {
-                    def auditReport = readFile('npm-audit-report.json')
-                    echo "📊 Reporte de vulnerabilidades generado"
-                }
             }
         }
 
@@ -77,7 +71,7 @@ pipeline {
             steps {
                 echo "📦 Construyendo el proyecto..."
                 // Crear directorios necesarios
-                bat 'mkdir logs 2>nul || echo Directorio logs ya existe'
+                bat 'if not exist logs mkdir logs'
                 echo "✅ Construcción completada"
             }
         }
@@ -114,45 +108,21 @@ AUTH_RATE_LIMIT_MAX=20
 SWAGGER_ENABLED=true
 """
                 echo "✅ Archivo .env configurado"
-                
-                // Mostrar contenido del .env (sin valores sensibles)
-                script {
-                    def envContent = readFile('.env')
-                    // Ocultar valores sensibles
-                    envContent = envContent.replaceAll(/(DB_PASSWORD=).*/, '$1***')
-                    envContent = envContent.replaceAll(/(JWT_SECRET=).*/, '$1***')
-                    echo "📝 .env configurado:\n${envContent}"
-                }
             }
         }
 
-        stage('🚀 Iniciar Servidor en Segundo Plano') {
+        stage('🚀 Iniciar Servidor') {
             steps {
-                echo "🚀 Iniciando servidor en segundo plano..."
+                echo "🚀 Iniciando servidor..."
                 
                 // Matar cualquier proceso anterior en el puerto 3000
-                bat 'netstat -ano | findstr :3000 || echo "Puerto 3000 libre"'
-                bat 'for /f "tokens=5" %a in (\'netstat -ano ^| findstr :3000\') do taskkill /F /PID %a 2>nul || echo "No se pudo matar el proceso"'
+                bat '''
+                    for /f "tokens=5" %a in (\'netstat -ano ^| findstr :3000\') do taskkill /F /PID %a 2>nul || echo "No se pudo matar el proceso"
+                '''
                 
-                // Iniciar servidor en segundo plano con PM2 (si está instalado)
-                script {
-                    // Verificar si PM2 está instalado
-                    def pm2Installed = bat(script: 'pm2 --version', returnStatus: true)
-                    if (pm2Installed == 0) {
-                        // Usar PM2
-                        bat """
-                            pm2 delete ${env.PROJECT_NAME} 2>nul || echo "No existe proceso anterior"
-                            pm2 start server.js --name "${env.PROJECT_NAME}" -- --port ${env.PORT}
-                            pm2 save
-                            pm2 list
-                        """
-                        echo "✅ Servidor iniciado con PM2"
-                    } else {
-                        // Usar nodemon en segundo plano
-                        bat 'start /B nodemon server.js > server.log 2>&1'
-                        echo "✅ Servidor iniciado con nodemon (PID: %ERRORLEVEL%)"
-                    }
-                }
+                // Iniciar servidor
+                bat 'start /B node server.js > server.log 2>&1'
+                echo "✅ Servidor iniciado"
                 
                 // Esperar a que el servidor esté listo
                 script {
@@ -163,7 +133,7 @@ SWAGGER_ENABLED=true
                     while (attempt < maxAttempts && !ready) {
                         attempt++
                         echo "⏳ Esperando servidor... (${attempt}/${maxAttempts})"
-                        def status = bat(script: 'curl -s -o nul -w "%%{http_code}" http://localhost:3000/api/health', returnStdout: true).trim()
+                        def status = bat(script: 'curl -s -o nul -w "%{http_code}" http://localhost:3000/api/health || echo "000"', returnStdout: true).trim()
                         if (status == '200') {
                             ready = true
                             echo "✅ Servidor listo!"
@@ -195,23 +165,12 @@ SWAGGER_ENABLED=true
             steps {
                 echo "📊 Verificando documentación Swagger..."
                 script {
-                    def swaggerCheck = bat(script: 'curl -s -o nul -w "%%{http_code}" http://localhost:3000/api/docs', returnStdout: true).trim()
+                    def swaggerCheck = bat(script: 'curl -s -o nul -w "%{http_code}" http://localhost:3000/api/docs || echo "000"', returnStdout: true).trim()
                     if (swaggerCheck == '200') {
                         echo "✅ Swagger disponible: http://localhost:3000/api/docs"
                     } else {
                         echo "⚠️ Swagger no disponible (código: ${swaggerCheck})"
                     }
-                }
-            }
-        }
-
-        stage('📦 Backup de Dependencias') {
-            steps {
-                echo "📦 Creando backup de node_modules..."
-                script {
-                    // Crear un archivo con la lista de dependencias
-                    bat 'npm list --depth=0 --json > dependencies.json'
-                    echo "✅ Lista de dependencias guardada"
                 }
             }
         }
@@ -240,12 +199,10 @@ SWAGGER_ENABLED=true
                             .status { padding: 10px; border-radius: 4px; margin: 10px 0; }
                             .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
                             .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
-                            .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+                            .footer { margin-top: 20px; text-align: center; color: #666; font-size: 12px; }
                             table { width: 100%; border-collapse: collapse; margin: 15px 0; }
                             th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
                             th { background-color: #e67e22; color: white; }
-                            tr:hover { background-color: #f5f5f5; }
-                            .footer { margin-top: 20px; text-align: center; color: #666; font-size: 12px; }
                         </style>
                     </head>
                     <body>
@@ -264,22 +221,6 @@ SWAGGER_ENABLED=true
                             <div class="status success">
                                 ✅ Construcción exitosa
                             </div>
-                            
-                            <h2>📋 Dependencias Instaladas</h2>
-                            <table>
-                                <tr>
-                                    <th>Paquete</th>
-                                    <th>Versión</th>
-                                </tr>
-                                ${readFile('dependencies.json').split('"dependencies":{').last().split('}')[0].split(',').each { dep ->
-                                    def parts = dep.trim().split(':')
-                                    if (parts.length == 2) {
-                                        def name = parts[0].replaceAll('"', '')
-                                        def version = parts[1].replaceAll('"', '').replaceAll('"', '')
-                                        "<tr><td>${name}</td><td>${version}</td></tr>"
-                                    }
-                                }}
-                            </table>
                             
                             <h2>🔍 Endpoints Disponibles</h2>
                             <table>
@@ -317,7 +258,7 @@ SWAGGER_ENABLED=true
                             
                             <div class="footer">
                                 <p>Generado automáticamente por Jenkins</p>
-                                <p>Pipeline #${env.BUILD_NUMBER} - ${new Date().format("yyyy-MM-dd HH:mm:ss")}</p>
+                                <p>Pipeline #${env.BUILD_NUMBER}</p>
                             </div>
                         </div>
                     </body>
@@ -350,13 +291,6 @@ SWAGGER_ENABLED=true
             
             ═══════════════════════════════════════════════════
             """
-            
-            // Enviar notificación de éxito (opcional)
-            // emailext (
-            //     subject: "✅ Pipeline exitoso - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-            //     body: "El pipeline ha sido completado exitosamente. Revisa el reporte.",
-            //     to: "equipo@polleriayacky.com"
-            // )
         }
         
         failure {
@@ -373,21 +307,9 @@ SWAGGER_ENABLED=true
             
             ═══════════════════════════════════════════════════
             """
-            
-            // Enviar notificación de fallo (opcional)
-            // emailext (
-            //     subject: "❌ Pipeline falló - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-            //     body: "El pipeline ha fallado. Revisa los logs para más detalles.",
-            //     to: "equipo@polleriayacky.com"
-            // )
         }
         
         always {
-            script {
-                // Limpiar el servidor al finalizar (opcional)
-                // bat 'pm2 delete ${env.PROJECT_NAME} 2>nul || echo "No existe proceso"'
-            }
-            
             echo """
             ═══════════════════════════════════════════════════
             🧹 LIMPIEZA COMPLETADA
