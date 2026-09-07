@@ -1,21 +1,19 @@
-// src/server.js
+// server.js (CORREGIDO)
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const path = require('path');
+const { securityMiddleware } = require('./src/config/security');
+const { logger } = require('./src/utils/logger');
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middlewares
-app.use(cors({
-  origin: ['http://localhost:4200', 'http://localhost:3000'],
-  credentials: true
-}));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// ============================================
+// MIDDLEWARES DE SEGURIDAD
+// ============================================
+securityMiddleware(app);
 
 // ============================================
 // RUTAS
@@ -29,28 +27,54 @@ app.use('/api/clientes', require('./src/routes/cliente.routes'));
 app.use('/api/pedidos', require('./src/routes/pedido.routes'));
 app.use('/api/reportes', require('./src/routes/reporte.routes'));
 app.use('/api/mesas', require('./src/routes/mesa.routes'));
+// app.use('/api/configuracion', require('./src/routes/configuracion.routes'));
 
-// Health check
+// ============================================
+// HEALTH CHECK
+// ============================================
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
 });
 
-// Error handler
+// ============================================
+// RUTA 404
+// ============================================
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    error: 'Ruta no encontrada'
+  });
+});
+
+// ============================================
+// ERROR HANDLER
+// ============================================
 app.use((err, req, res, next) => {
-  console.error('❌ Error:', err);
-  res.status(500).json({ error: 'Error interno del servidor' });
+  logger.error('❌ Error no controlado:', err);
+  
+  const isProduction = process.env.NODE_ENV === 'production';
+  res.status(500).json({
+    success: false,
+    error: isProduction ? 'Error interno del servidor' : err.message
+  });
 });
 
+// ============================================
+// INICIAR SERVIDOR
+// ============================================
 app.listen(PORT, () => {
-  console.log(`✅ Servidor corriendo en http://localhost:${PORT}`);
-  console.log(`📋 Rutas registradas:`);
-  console.log(`  - /api/auth`);
-  console.log(`  - /api/productos`);
-  console.log(`  - /api/categorias`);
-  console.log(`  - /api/ventas`);
-  console.log(`  - /api/usuarios`);
-  console.log(`  - /api/clientes`);
-  console.log(`  - /api/pedidos`);
-  console.log(`  - /api/reportes`);
-  console.log(`  - /api/mesas ✅ NUEVA`);
+  logger.info(`✅ Servidor corriendo en http://localhost:${PORT}`);
+  logger.info(`🔒 Seguridad activada: Helmet, Rate Limiting, Sanitización`);
+});
+
+// ============================================
+// MANEJO DE SEÑALES
+// ============================================
+process.on('SIGTERM', () => {
+  logger.info('🛑 Recibida señal SIGTERM, cerrando servidor...');
+  process.exit(0);
 });
