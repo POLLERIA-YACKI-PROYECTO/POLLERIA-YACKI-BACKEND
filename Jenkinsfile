@@ -6,6 +6,9 @@ pipeline {
     }
 
     environment {
+        // ✅ Agregar Git al PATH
+        PATH = "C:\\Program Files\\Git\\bin;C:\\Program Files\\Git\\cmd;${env.PATH}"
+        
         PROJECT_NAME = 'polleria-yacky-backend'
         REPO_URL = 'https://github.com/POLLERIA-YACKI-PROYECTO/POLLERIA-YACKI-BACKEND.git'
         BRANCH = 'main'
@@ -67,7 +70,6 @@ DB_PORT=3306
             steps {
                 echo "🔍 Verificando Health Check..."
                 
-                // ✅ Usar PowerShell para verificar
                 script {
                     try {
                         def healthCheck = powershell(returnStdout: true, script: '''
@@ -100,17 +102,49 @@ DB_PORT=3306
         stage('📊 Reporte') {
             steps {
                 script {
-                    def commitHash = bat(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                    // ✅ Usar PowerShell para obtener el commit hash
+                    def commitHash = powershell(returnStdout: true, script: '''
+                        $commit = git rev-parse --short HEAD 2>$null
+                        if ($commit) {
+                            Write-Output $commit.Trim()
+                        } else {
+                            Write-Output "unknown"
+                        }
+                    ''').trim()
+                    
+                    def buildDate = new Date().format("yyyy-MM-dd HH:mm:ss")
+                    
                     def report = """
+                    <!DOCTYPE html>
                     <html>
+                    <head>
+                        <title>Reporte - POLLERIA-YACKI-BACKEND</title>
+                        <style>
+                            body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+                            .container { max-width: 900px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+                            h1 { color: #333; border-bottom: 2px solid #e67e22; }
+                            .success { background: #d4edda; color: #155724; padding: 15px; border-radius: 4px; }
+                            .info { background: #f8f9fa; padding: 15px; border-radius: 4px; margin: 10px 0; }
+                        </style>
+                    </head>
                     <body>
-                        <h1>Reporte de Construcción</h1>
-                        <p>Proyecto: ${env.PROJECT_NAME}</p>
-                        <p>Commit: ${commitHash}</p>
-                        <p>Servidor: http://localhost:${env.PORT}</p>
-                    </body>
+                        <div class="container">
+                            <h1>📦 Reporte de Construcción</h1>
+                            <div class="success">✅ Construcción exitosa</div>
+                            <div class="info">
+                                <p><strong>Proyecto:</strong> ${env.PROJECT_NAME}</p>
+                                <p><strong>Build Date:</strong> ${buildDate}</p>
+                                <p><strong>Commit:</strong> ${commitHash}</p>
+                                <p><strong>Branch:</strong> ${env.BRANCH}</p>
+                            </div>
+                            <h2>🔍 Endpoints</h2>
+                            <ul>
+                                <li>Health: http://localhost:${env.PORT}/api/health ✅</li>
+                            </ul>
+                        </div>
                     </html>
                     """
+                    
                     writeFile file: 'build-report.html', text: report
                     archiveArtifacts artifacts: 'build-report.html'
                 }
@@ -120,11 +154,37 @@ DB_PORT=3306
 
     post {
         success {
-            echo "✅ PIPELINE COMPLETADO EXITOSAMENTE"
+            echo """
+            ═══════════════════════════════════════════════════
+            ✅ PIPELINE COMPLETADO EXITOSAMENTE
+            ═══════════════════════════════════════════════════
+            
+            📦 Proyecto: ${env.PROJECT_NAME}
+            🚀 Servidor: http://localhost:${env.PORT}
+            🔍 Health: http://localhost:${env.PORT}/api/health
+            
+            ═══════════════════════════════════════════════════
+            """
         }
+        
         failure {
-            echo "❌ PIPELINE FALLÓ"
+            echo """
+            ═══════════════════════════════════════════════════
+            ❌ PIPELINE FALLÓ
+            ═══════════════════════════════════════════════════
+            
+            📦 Proyecto: ${env.PROJECT_NAME}
+            🔄 Build #${env.BUILD_NUMBER}
+            
+            Revisa los logs para más detalles.
+            
+            ═══════════════════════════════════════════════════
+            """
             bat 'type server.log'
+        }
+        
+        always {
+            echo "🧹 Limpieza completada"
         }
     }
 }
