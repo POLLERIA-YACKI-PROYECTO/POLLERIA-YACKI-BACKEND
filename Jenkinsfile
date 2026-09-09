@@ -1,6 +1,11 @@
 pipeline {
     agent any
 
+    tools {
+        // ✅ Usar Node.js instalado en Jenkins
+        nodejs 'NodeJS-22.14'
+    }
+
     environment {
         // Variables de entorno
         PROJECT_NAME = 'polleria-yacky-backend'
@@ -31,19 +36,20 @@ pipeline {
         stage('🔧 Instalación de Dependencias') {
             steps {
                 script {
+                    // ✅ Verificar versiones de Node y npm
                     bat 'node --version'
                     bat 'npm --version'
                 }
+                // ✅ Instalar dependencias
                 bat 'npm install --no-fund --no-audit'
                 echo "✅ Dependencias instaladas"
             }
         }
 
-        stage('🔐 Configuración de Seguridad') {
+        stage('🔐 Configurar .env') {
             steps {
                 echo "🔐 Configurando archivo .env..."
                 
-                // ✅ Crear .env con las credenciales
                 writeFile file: '.env', text: """
 # Server
 PORT=${env.PORT}
@@ -78,16 +84,16 @@ SWAGGER_ENABLED=true
             steps {
                 echo "🚀 Iniciando servidor..."
                 
-                // Matar procesos en el puerto 3000
+                // ✅ Matar procesos en el puerto 3000
                 bat '''
                     for /f "tokens=5" %a in ('netstat -ano ^| findstr :3000') do taskkill /F /PID %a 2>nul || echo "No se pudo matar el proceso"
                 '''
                 
-                // Iniciar servidor
+                // ✅ Iniciar servidor en segundo plano
                 bat 'start /B node server.js > server.log 2>&1'
                 echo "✅ Servidor iniciado"
                 
-                // Esperar que el servidor esté listo
+                // ✅ Esperar que el servidor esté listo
                 script {
                     def maxAttempts = 30
                     def attempt = 0
@@ -108,6 +114,7 @@ SWAGGER_ENABLED=true
                     if (!ready) {
                         echo "⚠️ El servidor no respondió"
                         bat 'type server.log'
+                        error "❌ El servidor no se inició correctamente"
                     }
                 }
             }
@@ -121,20 +128,6 @@ SWAGGER_ENABLED=true
                     echo "📊 Health Check: ${healthCheck}"
                 }
                 echo "✅ Health Check OK"
-            }
-        }
-
-        stage('📊 Verificar Swagger') {
-            steps {
-                echo "📊 Verificando Swagger..."
-                script {
-                    def swaggerCheck = bat(script: 'curl -s -o nul -w "%{http_code}" http://localhost:3000/api/docs || echo "000"', returnStdout: true).trim()
-                    if (swaggerCheck == '200') {
-                        echo "✅ Swagger disponible"
-                    } else {
-                        echo "⚠️ Swagger no disponible (código: ${swaggerCheck})"
-                    }
-                }
             }
         }
 
@@ -168,11 +161,11 @@ SWAGGER_ENABLED=true
                                 <p><strong>Build Date:</strong> ${buildDate}</p>
                                 <p><strong>Commit:</strong> ${commitHash}</p>
                                 <p><strong>Branch:</strong> ${env.BRANCH}</p>
+                                <p><strong>Node.js:</strong> ${tool 'NodeJS-22.14'}</p>
                             </div>
                             <h2>🔍 Endpoints</h2>
                             <ul>
                                 <li>Health: http://localhost:${env.PORT}/api/health ✅</li>
-                                <li>Swagger: http://localhost:${env.PORT}/api/docs ✅</li>
                             </ul>
                         </div>
                     </html>
@@ -194,7 +187,6 @@ SWAGGER_ENABLED=true
             
             📦 Proyecto: ${env.PROJECT_NAME}
             🚀 Servidor: http://localhost:${env.PORT}
-            📚 Swagger: http://localhost:${env.PORT}/api/docs
             🔍 Health: http://localhost:${env.PORT}/api/health
             
             ═══════════════════════════════════════════════════
@@ -214,6 +206,14 @@ SWAGGER_ENABLED=true
             
             ═══════════════════════════════════════════════════
             """
+            // ✅ Mostrar logs del servidor si falló
+            script {
+                try {
+                    bat 'type server.log'
+                } catch (e) {
+                    echo "No se pudo mostrar el log del servidor"
+                }
+            }
         }
         
         always {
