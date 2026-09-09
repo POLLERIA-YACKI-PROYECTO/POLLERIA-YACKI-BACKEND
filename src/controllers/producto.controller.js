@@ -5,11 +5,23 @@ const fs = require('fs');
 const { uploadDir } = require('../config/multer');
 const { DEFAULT_IMAGE_NAME, getImageUrl, isDefaultImage } = require('../config/default-image');
 
+const eliminarImagenPersonalizada = (nombreImagen) => {
+  if (!nombreImagen || isDefaultImage(nombreImagen)) {
+    return;
+  }
+
+  const rutaImagen = path.join(uploadDir, path.basename(nombreImagen));
+
+  if (fs.existsSync(rutaImagen)) {
+    fs.unlinkSync(rutaImagen);
+  }
+};
+
 // Obtener todos los productos (con URL de imagen)
 exports.getAll = async (req, res) => {
   try {
     const productos = await Producto.findAll();
-    // ✅ Agregar URL completa de la imagen
+    // Agregar URL completa de la imagen
     const productosConUrl = productos.map(p => ({
       ...p,
       imagenUrl: getImageUrl(p.imagen),
@@ -84,11 +96,11 @@ exports.create = async (req, res) => {
       return res.status(400).json({ error: 'Nombre y precio son requeridos' });
     }
 
-    // ✅ Si hay imagen, se guarda como imagen.jpg
+    // Si no se adjunta imagen se mantiene la imagen predeterminada
     let imagen = DEFAULT_IMAGE_NAME;
     if (req.file) {
-      imagen = req.file.filename; // Siempre será 'imagen.jpg'
-      console.log('📸 Imagen guardada:', imagen);
+      imagen = req.file.filename;
+      console.log('Imagen guardada:', imagen);
     }
 
     const nuevoProducto = await Producto.create({
@@ -129,11 +141,11 @@ exports.update = async (req, res) => {
       return res.status(404).json({ error: 'Producto no encontrado' });
     }
 
-    // ✅ Procesar imagen
+    // Procesar imagen
     let imagen = productoExistente.imagen || DEFAULT_IMAGE_NAME;
     if (req.file) {
-      imagen = req.file.filename; // Siempre será 'imagen.jpg'
-      console.log('📸 Imagen actualizada:', imagen);
+      imagen = req.file.filename;
+      console.log('Imagen actualizada:', imagen);
     }
 
     const actualizado = await Producto.update(id, {
@@ -148,6 +160,13 @@ exports.update = async (req, res) => {
     });
 
     if (actualizado) {
+      if (
+        req.file &&
+        productoExistente.imagen !== imagen
+      ) {
+        eliminarImagenPersonalizada(productoExistente.imagen);
+      }
+
       const producto = await Producto.findById(id);
       producto.imagenUrl = getImageUrl(producto.imagen);
       producto.esDefault = isDefaultImage(producto.imagen);
@@ -161,7 +180,7 @@ exports.update = async (req, res) => {
   }
 };
 
-// ✅ Actualizar SOLO la imagen
+// Actualizar SOLO la imagen
 exports.updateImage = async (req, res) => {
   try {
     const { id } = req.params;
@@ -181,11 +200,14 @@ exports.updateImage = async (req, res) => {
       });
     }
 
-    // ✅ Siempre se guarda como imagen.jpg
     const imagen = req.file.filename;
     const actualizado = await Producto.updateImage(id, imagen);
 
     if (actualizado) {
+      if (productoExistente.imagen !== imagen) {
+        eliminarImagenPersonalizada(productoExistente.imagen);
+      }
+
       const producto = await Producto.findById(id);
       producto.imagenUrl = getImageUrl(imagen);
       producto.esDefault = isDefaultImage(imagen);
@@ -209,7 +231,7 @@ exports.updateImage = async (req, res) => {
   }
 };
 
-// ✅ Restaurar imagen por defecto
+// Restaurar imagen por defecto
 exports.restoreDefaultImage = async (req, res) => {
   try {
     const { id } = req.params;
@@ -222,11 +244,13 @@ exports.restoreDefaultImage = async (req, res) => {
       });
     }
 
-    // ✅ Restaurar imagen por defecto
+    // Restaurar imagen por defecto
     const imagen = DEFAULT_IMAGE_NAME;
     const actualizado = await Producto.updateImage(id, imagen);
 
     if (actualizado) {
+      eliminarImagenPersonalizada(productoExistente.imagen);
+
       const producto = await Producto.findById(id);
       producto.imagenUrl = getImageUrl(imagen);
       producto.esDefault = true;
@@ -262,6 +286,7 @@ exports.delete = async (req, res) => {
 
     const eliminado = await Producto.delete(id);
     if (eliminado) {
+      eliminarImagenPersonalizada(producto.imagen);
       res.json({ message: 'Producto eliminado correctamente' });
     } else {
       res.status(404).json({ error: 'Producto no encontrado' });

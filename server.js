@@ -20,7 +20,19 @@ securityMiddleware(app);
 // ✅ ARCHIVOS ESTÁTICOS (IMÁGENES)
 // ============================================
 // Servir la carpeta uploads como estática
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use(
+  "/uploads",
+  express.static(path.join(__dirname, "uploads"), {
+    setHeaders: (response) => {
+      response.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+
+      response.setHeader(
+        "Access-Control-Allow-Origin",
+        "http://localhost:4200",
+      );
+    },
+  }),
+);
 
 // ============================================
 // SWAGGER DOCUMENTATION

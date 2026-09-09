@@ -78,33 +78,62 @@ const sanitizeInput = (req, res, next) => {
 // Middleware de seguridad completo
 const securityMiddleware = (app) => {
   // IMPORTANTE: express.json() DEBE ESTAR ANTES DE CUALQUIER RUTA
-  app.use(express.json({ limit: '10mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+  app.use(express.json({ limit: '25mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '25mb' }));
   
   // Helmet para headers de seguridad
-  app.use(helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", "data:", "https:"],
-        connectSrc: ["'self'", process.env.API_URL || 'http://localhost:3000'],
-        fontSrc: ["'self'"],
-        objectSrc: ["'none'"],
-        mediaSrc: ["'self'"],
-        frameSrc: ["'none'"]
-      }
-    },
-    xssFilter: true,
-    noSniff: true,
-    referrerPolicy: { policy: 'same-origin' },
-    hsts: {
-      maxAge: 31536000,
-      includeSubDomains: true,
-      preload: true
-    }
-  }));
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: {
+        policy: "cross-origin",
+      },
+
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+
+          scriptSrc: ["'self'"],
+
+          styleSrc: ["'self'", "'unsafe-inline'"],
+
+          imgSrc: [
+            "'self'",
+            "data:",
+            "blob:",
+            "http://localhost:3000",
+            "https:",
+          ],
+
+          connectSrc: [
+            "'self'",
+            process.env.API_URL || "http://localhost:3000",
+          ],
+
+          fontSrc: ["'self'"],
+
+          objectSrc: ["'none'"],
+
+          mediaSrc: ["'self'"],
+
+          frameSrc: ["'none'"],
+        },
+      },
+
+      xssFilter: true,
+
+      noSniff: true,
+
+      referrerPolicy: {
+        policy: "same-origin",
+      },
+
+      hsts: {
+        maxAge: 31536000,
+        includeSubDomains: true,
+        preload: true,
+      },
+    }),
+  );
 
   // Compresión gzip
   app.use(compression());
@@ -126,7 +155,7 @@ const securityMiddleware = (app) => {
 
   // Logging de seguridad
   app.use((req, res, next) => {
-    console.log(`🔒 ${req.method} ${req.path} - IP: ${req.ip}`);
+    console.log(`${req.method} ${req.path} - IP: ${req.ip}`);
     next();
   });
 };

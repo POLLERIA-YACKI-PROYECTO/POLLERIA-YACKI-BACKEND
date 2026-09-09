@@ -2,79 +2,111 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { DEFAULT_IMAGE_NAME, ensureDefaultImage } = require('./default-image');
+const crypto = require('crypto');
+const {
+  ensureDefaultImage
+} = require('./default-image');
 
-// Asegurar que la imagen por defecto existe
-ensureDefaultImage();
-
+const MAX_IMAGE_SIZE = 20 * 1024 * 1024;
 const uploadDir = path.join(__dirname, '../../uploads/productos');
 
-// Crear la carpeta si no existe
+ensureDefaultImage();
+
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
-  console.log('📁 Carpeta de imágenes creada:', uploadDir);
 }
 
-console.log('📁 Directorio de imágenes:', uploadDir);
-
-// Configuración de almacenamiento
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadDir);
+  destination: (req, file, callback) => {
+    callback(null, uploadDir);
   },
-  filename: function (req, file, cb) {
-    // ✅ Siempre se guarda como 'imagen.jpg'
-    cb(null, DEFAULT_IMAGE_NAME);
+  filename: (req, file, callback) => {
+    const extension = path.extname(file.originalname).toLowerCase();
+    const identificador = crypto.randomBytes(8).toString('hex');
+    const nombreArchivo = `producto-${Date.now()}-${identificador}${extension}`;
+
+    callback(null, nombreArchivo);
   }
 });
 
-// Filtro de archivos - solo imágenes
-const fileFilter = (req, file, cb) => {
-  const allowedTypes = /jpeg|jpg|png|gif|webp|svg/;
-  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowedTypes.test(file.mimetype);
+const tiposMimePermitidos = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp'
+]);
 
-  if (mimetype && extname) {
-    return cb(null, true);
-  } else {
-    cb(new Error('❌ Solo se permiten imágenes (jpeg, jpg, png, gif, webp, svg)'));
+const extensionesPermitidas = new Set([
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.gif',
+  '.webp'
+]);
+
+const fileFilter = (req, file, callback) => {
+  const extension = path.extname(file.originalname).toLowerCase();
+  const mimeValido = tiposMimePermitidos.has(file.mimetype);
+  const extensionValida = extensionesPermitidas.has(extension);
+
+  if (mimeValido && extensionValida) {
+    callback(null, true);
+    return;
   }
+
+  callback(
+    new Error('Solo se permiten imágenes JPG, JPEG, PNG, GIF o WEBP')
+  );
 };
 
-// Configuración de Multer
 const upload = multer({
-  storage: storage,
+  storage,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB máximo
+    fileSize: MAX_IMAGE_SIZE,
+    files: 1
   },
-  fileFilter: fileFilter
+  fileFilter
 });
 
-// Middleware para manejar errores de Multer
-const handleMulterError = (err, req, res, next) => {
-  if (err instanceof multer.MulterError) {
-    if (err.code === 'FILE_TOO_LARGE') {
-      return res.status(400).json({
+const handleMulterError = (error, req, res, next) => {
+  if (!error) {
+    next();
+    return;
+  }
+
+  if (error instanceof multer.MulterError) {
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      res.status(400).json({
         success: false,
-        error: 'El archivo es demasiado grande. Máximo 5MB'
+        error: 'La imagen no debe superar los 20 MB'
       });
+      return;
     }
-    return res.status(400).json({
+
+    if (error.code === 'LIMIT_FILE_COUNT') {
+      res.status(400).json({
+        success: false,
+        error: 'Solo se permite una imagen por producto'
+      });
+      return;
+    }
+
+    res.status(400).json({
       success: false,
-      error: err.message
+      error: error.message
     });
+    return;
   }
-  if (err) {
-    return res.status(400).json({
-      success: false,
-      error: err.message
-    });
-  }
-  next();
+
+  res.status(400).json({
+    success: false,
+    error: error.message || 'No se pudo procesar la imagen'
+  });
 };
 
 module.exports = {
   upload,
   handleMulterError,
-  uploadDir
+  uploadDir,
+  MAX_IMAGE_SIZE
 };
