@@ -1,4 +1,4 @@
-// src/controllers/pedido.controller.js
+// src/controllers/pedido.controller.js - COMPLETO Y CORREGIDO
 const Pedido = require('../models/Pedido');
 const db = require('../config/database');
 
@@ -22,7 +22,7 @@ exports.getAll = async (req, res) => {
       pedidos = await Pedido.findByUsuario(usuarioId);
     }
     
-    pedidos.forEach(p => {
+    pedidos = pedidos.map(p => {
       if (typeof p.items === 'string') {
         try {
           p.items = JSON.parse(p.items);
@@ -30,6 +30,16 @@ exports.getAll = async (req, res) => {
           p.items = [];
         }
       }
+      
+      if (p.usuario_nombre) {
+        p.usuario_nombre_completo = p.usuario_apellido 
+          ? `${p.usuario_nombre} ${p.usuario_apellido}` 
+          : p.usuario_nombre;
+      } else {
+        p.usuario_nombre_completo = 'Usuario desconocido';
+      }
+      
+      return p;
     });
     
     console.log(`✅ ${pedidos.length} pedidos encontrados`);
@@ -47,9 +57,11 @@ exports.getById = async (req, res) => {
   try {
     const { id } = req.params;
     const pedido = await Pedido.findById(id);
+    
     if (!pedido) {
       return res.status(404).json({ error: 'Pedido no encontrado' });
     }
+    
     if (typeof pedido.items === 'string') {
       try {
         pedido.items = JSON.parse(pedido.items);
@@ -57,6 +69,13 @@ exports.getById = async (req, res) => {
         pedido.items = [];
       }
     }
+    
+    if (pedido.usuario_nombre) {
+      pedido.usuario_nombre_completo = pedido.usuario_apellido 
+        ? `${pedido.usuario_nombre} ${pedido.usuario_apellido}` 
+        : pedido.usuario_nombre;
+    }
+    
     res.json(pedido);
   } catch (error) {
     console.error('Error en getById:', error);
@@ -65,7 +84,7 @@ exports.getById = async (req, res) => {
 };
 
 // ============================================
-// ✅ CREAR PEDIDO - CORREGIDO
+// CREAR PEDIDO
 // ============================================
 exports.create = async (req, res) => {
   try {
@@ -98,11 +117,9 @@ exports.create = async (req, res) => {
       return res.status(400).json({ error: 'El pedido debe tener al menos un item' });
     }
 
-    // ✅ PROCESAR ITEMS CORRECTAMENTE
     let itemsProcesados = [];
     
     try {
-      // Si items es un array, procesarlo
       if (Array.isArray(items)) {
         itemsProcesados = items.map(item => ({
           id: Number(item.id) || 0,
@@ -111,9 +128,7 @@ exports.create = async (req, res) => {
           cantidad: Number(item.cantidad) || 0,
           subtotal: Number(item.subtotal) || (Number(item.precio) * Number(item.cantidad))
         }));
-      } 
-      // Si items es un string, parsearlo
-      else if (typeof items === 'string') {
+      } else if (typeof items === 'string') {
         try {
           const parsed = JSON.parse(items);
           if (Array.isArray(parsed)) {
@@ -135,7 +150,6 @@ exports.create = async (req, res) => {
       itemsProcesados = [];
     }
 
-    // ✅ Verificar que itemsProcesados no esté vacío
     if (itemsProcesados.length === 0) {
       console.log('❌ No se pudieron procesar los items correctamente');
       return res.status(400).json({ 
@@ -144,7 +158,6 @@ exports.create = async (req, res) => {
       });
     }
 
-    // ✅ Calcular subtotal
     let subtotal = 0;
     itemsProcesados.forEach(item => {
       subtotal += Number(item.precio) * Number(item.cantidad);
@@ -158,11 +171,10 @@ exports.create = async (req, res) => {
     console.log('📝 IGV:', igv);
     console.log('📝 Total:', totalFinal);
 
-    // ✅ Crear el pedido - PASAR EL ARRAY DIRECTAMENTE
     const nuevoPedido = await Pedido.create({
       usuario_id,
       mesa_id: mesa_id || null,
-      items: itemsProcesados, // ✅ PASAMOS EL ARRAY, NO EL STRING
+      items: itemsProcesados,
       subtotal,
       igv,
       total: totalFinal,
@@ -178,7 +190,6 @@ exports.create = async (req, res) => {
 
     console.log('✅ Pedido creado con ID:', nuevoPedido.id);
 
-    // Obtener el pedido completo
     const pedidoCompleto = await Pedido.findById(nuevoPedido.id);
     if (pedidoCompleto && typeof pedidoCompleto.items === 'string') {
       try {
@@ -188,7 +199,6 @@ exports.create = async (req, res) => {
       }
     }
 
-    // Si el pedido ya está pagado, marcar como pagado y crear venta
     if (pagado === true || pagado === 1) {
       console.log('📝 Pedido marcado como pagado directamente');
       
@@ -231,7 +241,7 @@ exports.create = async (req, res) => {
 };
 
 // ============================================
-// ✅ MARCAR PEDIDO COMO PAGADO
+// MARCAR PEDIDO COMO PAGADO
 // ============================================
 exports.marcarPagado = async (req, res) => {
   try {
@@ -277,7 +287,6 @@ exports.marcarPagado = async (req, res) => {
 
     const tipoEntrega = pedido.tipo_entrega || 'local';
 
-    // Actualizar el pedido
     await db.query(
       `UPDATE pedidos 
        SET estado = 'entregado', 
@@ -289,11 +298,9 @@ exports.marcarPagado = async (req, res) => {
       [metodo_pago, id]
     );
 
-    // Obtener el pedido actualizado
     const [pedidoActualizado] = await db.query('SELECT * FROM pedidos WHERE id = ? AND deleted_at IS NULL', [id]);
     const pedidoData = pedidoActualizado[0];
 
-    // Parsear items
     let items = pedidoData.items;
     if (typeof items === 'string') {
       try {
@@ -303,7 +310,6 @@ exports.marcarPagado = async (req, res) => {
       }
     }
 
-    // Crear la venta
     const [ventaExistente] = await db.query('SELECT id FROM ventas WHERE pedido_id = ? AND deleted_at IS NULL', [id]);
     
     if (ventaExistente.length === 0) {
@@ -349,27 +355,15 @@ exports.marcarPagado = async (req, res) => {
 };
 
 // ============================================
-// ✅ OBTENER PEDIDOS PENDIENTES
+// OBTENER PEDIDOS PENDIENTES
 // ============================================
 exports.getPendientes = async (req, res) => {
   try {
     console.log('📝 === OBTENIENDO PEDIDOS PENDIENTES ===');
     
-    const [rows] = await db.query(`
-      SELECT p.*, 
-             u.nombre as usuario_nombre, 
-             u.rol as usuario_rol,
-             c.nombre as cliente_nombre_real
-      FROM pedidos p
-      LEFT JOIN usuarios u ON p.usuario_id = u.id
-      LEFT JOIN clientes c ON p.cliente_id = c.id
-      WHERE p.estado IN ('pendiente', 'preparando', 'listo')
-        AND (p.pagado = 0 OR p.pagado IS NULL)
-        AND p.deleted_at IS NULL
-      ORDER BY p.created_at DESC
-    `);
+    const pedidos = await Pedido.findPendientes();
     
-    rows.forEach(p => {
+    pedidos.forEach(p => {
       if (typeof p.items === 'string') {
         try {
           p.items = JSON.parse(p.items);
@@ -379,8 +373,8 @@ exports.getPendientes = async (req, res) => {
       }
     });
     
-    console.log(`✅ ${rows.length} pedidos pendientes encontrados`);
-    res.json(rows);
+    console.log(`✅ ${pedidos.length} pedidos pendientes encontrados`);
+    res.json(pedidos);
   } catch (error) {
     console.error('❌ Error en getPendientes:', error);
     res.status(500).json({ error: 'Error al obtener pedidos pendientes' });
@@ -388,27 +382,15 @@ exports.getPendientes = async (req, res) => {
 };
 
 // ============================================
-// ✅ OBTENER PEDIDOS PAGADOS
+// OBTENER PEDIDOS PAGADOS
 // ============================================
 exports.getPagados = async (req, res) => {
   try {
     console.log('📝 === OBTENIENDO PEDIDOS PAGADOS ===');
     
-    const [rows] = await db.query(`
-      SELECT p.*, 
-             u.nombre as usuario_nombre, 
-             u.rol as usuario_rol,
-             c.nombre as cliente_nombre_real
-      FROM pedidos p
-      LEFT JOIN usuarios u ON p.usuario_id = u.id
-      LEFT JOIN clientes c ON p.cliente_id = c.id
-      WHERE p.estado = 'entregado'
-        AND p.pagado = 1
-        AND p.deleted_at IS NULL
-      ORDER BY p.fecha_pago DESC, p.created_at DESC
-    `);
+    const pedidos = await Pedido.findPagados();
     
-    rows.forEach(p => {
+    pedidos.forEach(p => {
       if (typeof p.items === 'string') {
         try {
           p.items = JSON.parse(p.items);
@@ -418,8 +400,8 @@ exports.getPagados = async (req, res) => {
       }
     });
     
-    console.log(`✅ ${rows.length} pedidos pagados encontrados`);
-    res.json(rows);
+    console.log(`✅ ${pedidos.length} pedidos pagados encontrados`);
+    res.json(pedidos);
   } catch (error) {
     console.error('❌ Error en getPagados:', error);
     res.status(500).json({ error: 'Error al obtener pedidos pagados' });
@@ -427,7 +409,7 @@ exports.getPagados = async (req, res) => {
 };
 
 // ============================================
-// ✅ OBTENER PEDIDOS POR TIPO DE ENTREGA
+// OBTENER PEDIDOS POR TIPO DE ENTREGA
 // ============================================
 exports.getByTipoEntrega = async (req, res) => {
   try {
@@ -435,21 +417,9 @@ exports.getByTipoEntrega = async (req, res) => {
     
     console.log(`📝 === OBTENIENDO PEDIDOS TIPO: ${tipo} ===`);
     
-    const [rows] = await db.query(`
-      SELECT p.*, 
-             u.nombre as usuario_nombre, 
-             u.rol as usuario_rol,
-             c.nombre as cliente_nombre_real
-      FROM pedidos p
-      LEFT JOIN usuarios u ON p.usuario_id = u.id
-      LEFT JOIN clientes c ON p.cliente_id = c.id
-      WHERE p.tipo_entrega = ?
-        AND p.pagado = 1
-        AND p.deleted_at IS NULL
-      ORDER BY p.created_at DESC
-    `, [tipo]);
+    const pedidos = await Pedido.findByTipoEntrega(tipo);
     
-    rows.forEach(p => {
+    pedidos.forEach(p => {
       if (typeof p.items === 'string') {
         try {
           p.items = JSON.parse(p.items);
@@ -459,8 +429,8 @@ exports.getByTipoEntrega = async (req, res) => {
       }
     });
     
-    console.log(`✅ ${rows.length} pedidos tipo ${tipo} encontrados`);
-    res.json(rows);
+    console.log(`✅ ${pedidos.length} pedidos tipo ${tipo} encontrados`);
+    res.json(pedidos);
   } catch (error) {
     console.error('❌ Error en getByTipoEntrega:', error);
     res.status(500).json({ error: 'Error al obtener pedidos por tipo' });
@@ -468,7 +438,7 @@ exports.getByTipoEntrega = async (req, res) => {
 };
 
 // ============================================
-// ✅ OBTENER PEDIDOS ENTREGADOS DEL MESERO
+// OBTENER PEDIDOS ENTREGADOS DEL MESERO
 // ============================================
 exports.getPedidosPagadosMesero = async (req, res) => {
   try {
@@ -484,21 +454,9 @@ exports.getPedidosPagadosMesero = async (req, res) => {
       });
     }
     
-    const [rows] = await db.query(`
-      SELECT p.*, 
-             u.nombre as usuario_nombre, 
-             u.rol as usuario_rol,
-             c.nombre as cliente_nombre_real
-      FROM pedidos p
-      LEFT JOIN usuarios u ON p.usuario_id = u.id
-      LEFT JOIN clientes c ON p.cliente_id = c.id
-      WHERE p.estado = 'entregado'
-        AND p.usuario_id = ?
-        AND p.deleted_at IS NULL
-      ORDER BY p.fecha_pago DESC, p.created_at DESC
-    `, [usuarioId]);
+    const pedidos = await Pedido.findEntregadosByUsuario(usuarioId);
     
-    rows.forEach(p => {
+    pedidos.forEach(p => {
       if (typeof p.items === 'string') {
         try {
           p.items = JSON.parse(p.items);
@@ -508,8 +466,8 @@ exports.getPedidosPagadosMesero = async (req, res) => {
       }
     });
     
-    console.log(`✅ ${rows.length} pedidos entregados encontrados para el mesero`);
-    res.json(rows);
+    console.log(`✅ ${pedidos.length} pedidos entregados encontrados para el mesero`);
+    res.json(pedidos);
   } catch (error) {
     console.error('❌ Error en getPedidosPagadosMesero:', error);
     res.status(500).json({ 

@@ -1,5 +1,4 @@
-// src\controllers\mesa.controller.js
-
+// src/controllers/mesa.controller.js
 const Mesa = require('../models/Mesa');
 
 exports.getAll = async (req, res) => {
@@ -28,11 +27,18 @@ exports.getById = async (req, res) => {
 
 exports.create = async (req, res) => {
   try {
-    const { numero, capacidad } = req.body;
+    const { numero, capacidad, ubicacion } = req.body;
+    
     if (!numero) {
-      return res.status(400).json({ error: 'Número de mesa es requerido' });
+      return res.status(400).json({ error: 'El número de mesa es requerido' });
     }
-    const nuevaMesa = await Mesa.create({ numero, capacidad });
+    
+    const existente = await Mesa.findByNumero(numero);
+    if (existente) {
+      return res.status(400).json({ error: 'Ya existe una mesa con ese número' });
+    }
+    
+    const nuevaMesa = await Mesa.create({ numero, capacidad, ubicacion });
     res.status(201).json(nuevaMesa);
   } catch (error) {
     console.error('Error en create:', error);
@@ -43,18 +49,30 @@ exports.create = async (req, res) => {
 exports.ocuparMesa = async (req, res) => {
   try {
     const { numero } = req.params;
-    const { cliente } = req.body;
+    const { cliente, cantidad_personas } = req.body;
+    
+    if (!cliente) {
+      return res.status(400).json({ error: 'El nombre del cliente es requerido' });
+    }
+    
     const mesa = await Mesa.findByNumero(numero);
     if (!mesa) {
       return res.status(404).json({ error: 'Mesa no encontrada' });
     }
+    
     if (mesa.ocupada) {
       return res.status(400).json({ error: 'La mesa ya está ocupada' });
     }
-    const ocupado = await Mesa.ocuparMesa(numero, cliente);
+    
+    const ocupado = await Mesa.ocuparMesa(numero, cliente, cantidad_personas || 0);
+    
     if (ocupado) {
       const mesaActualizada = await Mesa.findByNumero(numero);
-      res.json(mesaActualizada);
+      res.json({ 
+        success: true, 
+        message: `Mesa ${numero} ocupada correctamente`,
+        mesa: mesaActualizada
+      });
     } else {
       res.status(400).json({ error: 'No se pudo ocupar la mesa' });
     }
@@ -67,14 +85,25 @@ exports.ocuparMesa = async (req, res) => {
 exports.liberarMesa = async (req, res) => {
   try {
     const { numero } = req.params;
+    
     const mesa = await Mesa.findByNumero(numero);
     if (!mesa) {
       return res.status(404).json({ error: 'Mesa no encontrada' });
     }
+    
+    if (!mesa.ocupada) {
+      return res.status(400).json({ error: 'La mesa ya está libre' });
+    }
+    
     const liberado = await Mesa.liberarMesa(numero);
+    
     if (liberado) {
       const mesaActualizada = await Mesa.findByNumero(numero);
-      res.json(mesaActualizada);
+      res.json({ 
+        success: true, 
+        message: `Mesa ${numero} liberada correctamente`,
+        mesa: mesaActualizada
+      });
     } else {
       res.status(400).json({ error: 'No se pudo liberar la mesa' });
     }
@@ -89,7 +118,7 @@ exports.delete = async (req, res) => {
     const { id } = req.params;
     const eliminado = await Mesa.delete(id);
     if (eliminado) {
-      res.json({ message: 'Mesa eliminada correctamente' });
+      res.json({ success: true, message: 'Mesa eliminada correctamente' });
     } else {
       res.status(404).json({ error: 'Mesa no encontrada' });
     }

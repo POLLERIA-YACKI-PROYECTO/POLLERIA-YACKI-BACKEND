@@ -2,44 +2,71 @@
 const db = require('../config/database');
 
 class Pedido {
-  // ✅ FIND ALL
+  // ✅ FIND ALL - CORREGIDO
   static async findAll() {
     const [rows] = await db.query(`
-      SELECT p.*, 
-             u.nombre as usuario_nombre, 
-             u.rol as usuario_rol,
-             c.nombre as cliente_nombre_real
+      SELECT 
+        p.*,
+        u.nombre as usuario_nombre,
+        u.apellido as usuario_apellido,
+        u.rol as usuario_rol,
+        c.nombre as cliente_nombre_real,
+        c.apellido as cliente_apellido
       FROM pedidos p
       LEFT JOIN usuarios u ON p.usuario_id = u.id
       LEFT JOIN clientes c ON p.cliente_id = c.id
       WHERE p.deleted_at IS NULL
       ORDER BY p.id DESC
     `);
-    return rows;
+    
+    return rows.map(p => {
+      if (p.usuario_nombre) {
+        p.usuario_nombre_completo = p.usuario_apellido 
+          ? `${p.usuario_nombre} ${p.usuario_apellido}` 
+          : p.usuario_nombre;
+      }
+      return p;
+    });
   }
 
   // ✅ FIND BY ID - CORREGIDO
   static async findById(id) {
     const [rows] = await db.query(`
-      SELECT p.*, 
-             u.nombre as usuario_nombre, 
-             u.rol as usuario_rol,
-             c.nombre as cliente_nombre_real
+      SELECT 
+        p.*,
+        u.nombre as usuario_nombre,
+        u.apellido as usuario_apellido,
+        u.rol as usuario_rol,
+        c.nombre as cliente_nombre_real,
+        c.apellido as cliente_apellido
       FROM pedidos p
       LEFT JOIN usuarios u ON p.usuario_id = u.id
       LEFT JOIN clientes c ON p.cliente_id = c.id
       WHERE p.id = ? AND p.deleted_at IS NULL
     `, [id]);
-    return rows[0];
+    
+    if (rows[0]) {
+      const p = rows[0];
+      if (p.usuario_nombre) {
+        p.usuario_nombre_completo = p.usuario_apellido 
+          ? `${p.usuario_nombre} ${p.usuario_apellido}` 
+          : p.usuario_nombre;
+      }
+      return p;
+    }
+    return null;
   }
 
-  // ✅ FIND BY USUARIO
+  // ✅ FIND BY USUARIO - CORREGIDO
   static async findByUsuario(usuarioId) {
     const [rows] = await db.query(`
-      SELECT p.*, 
-             u.nombre as usuario_nombre, 
-             u.rol as usuario_rol,
-             c.nombre as cliente_nombre_real
+      SELECT 
+        p.*,
+        u.nombre as usuario_nombre,
+        u.apellido as usuario_apellido,
+        u.rol as usuario_rol,
+        c.nombre as cliente_nombre_real,
+        c.apellido as cliente_apellido
       FROM pedidos p
       LEFT JOIN usuarios u ON p.usuario_id = u.id
       LEFT JOIN clientes c ON p.cliente_id = c.id
@@ -47,10 +74,134 @@ class Pedido {
         AND p.deleted_at IS NULL
       ORDER BY p.id DESC
     `, [usuarioId]);
-    return rows;
+    
+    return rows.map(p => {
+      if (p.usuario_nombre) {
+        p.usuario_nombre_completo = p.usuario_apellido 
+          ? `${p.usuario_nombre} ${p.usuario_apellido}` 
+          : p.usuario_nombre;
+      }
+      return p;
+    });
   }
 
-  // ✅ CREATE - CORREGIDO
+  // ✅ FIND PENDIENTES - CORREGIDO
+  static async findPendientes() {
+    const [rows] = await db.query(`
+      SELECT 
+        p.*,
+        u.nombre as usuario_nombre,
+        u.apellido as usuario_apellido,
+        u.rol as usuario_rol,
+        c.nombre as cliente_nombre_real,
+        c.apellido as cliente_apellido
+      FROM pedidos p
+      LEFT JOIN usuarios u ON p.usuario_id = u.id
+      LEFT JOIN clientes c ON p.cliente_id = c.id
+      WHERE p.estado IN ('pendiente', 'preparando', 'listo') 
+        AND (p.pagado = 0 OR p.pagado IS NULL)
+        AND p.deleted_at IS NULL
+      ORDER BY p.created_at DESC
+    `);
+    
+    return rows.map(p => {
+      if (p.usuario_nombre) {
+        p.usuario_nombre_completo = p.usuario_apellido 
+          ? `${p.usuario_nombre} ${p.usuario_apellido}` 
+          : p.usuario_nombre;
+      }
+      return p;
+    });
+  }
+
+  // ✅ FIND PAGADOS - CORREGIDO
+  static async findPagados() {
+    const [rows] = await db.query(`
+      SELECT 
+        p.*,
+        u.nombre as usuario_nombre,
+        u.apellido as usuario_apellido,
+        u.rol as usuario_rol,
+        c.nombre as cliente_nombre_real,
+        c.apellido as cliente_apellido
+      FROM pedidos p
+      LEFT JOIN usuarios u ON p.usuario_id = u.id
+      LEFT JOIN clientes c ON p.cliente_id = c.id
+      WHERE p.estado = 'entregado' 
+        AND p.pagado = 1
+        AND p.deleted_at IS NULL
+      ORDER BY p.fecha_pago DESC
+    `);
+    
+    return rows.map(p => {
+      if (p.usuario_nombre) {
+        p.usuario_nombre_completo = p.usuario_apellido 
+          ? `${p.usuario_nombre} ${p.usuario_apellido}` 
+          : p.usuario_nombre;
+      }
+      return p;
+    });
+  }
+
+  // ✅ FIND ENTREGADOS POR USUARIO - CORREGIDO
+  static async findEntregadosByUsuario(usuarioId) {
+    const [rows] = await db.query(`
+      SELECT 
+        p.*,
+        u.nombre as usuario_nombre,
+        u.apellido as usuario_apellido,
+        u.rol as usuario_rol,
+        c.nombre as cliente_nombre_real,
+        c.apellido as cliente_apellido
+      FROM pedidos p
+      LEFT JOIN usuarios u ON p.usuario_id = u.id
+      LEFT JOIN clientes c ON p.cliente_id = c.id
+      WHERE p.estado = 'entregado'
+        AND p.usuario_id = ?
+        AND p.deleted_at IS NULL
+      ORDER BY p.fecha_pago DESC, p.created_at DESC
+    `, [usuarioId]);
+    
+    return rows.map(p => {
+      if (p.usuario_nombre) {
+        p.usuario_nombre_completo = p.usuario_apellido 
+          ? `${p.usuario_nombre} ${p.usuario_apellido}` 
+          : p.usuario_nombre;
+      }
+      return p;
+    });
+  }
+
+  // ✅ FIND BY TIPO ENTREGA - CORREGIDO
+  static async findByTipoEntrega(tipo_entrega) {
+    const [rows] = await db.query(`
+      SELECT 
+        p.*,
+        u.nombre as usuario_nombre,
+        u.apellido as usuario_apellido,
+        u.rol as usuario_rol,
+        c.nombre as cliente_nombre_real,
+        c.apellido as cliente_apellido
+      FROM pedidos p
+      LEFT JOIN usuarios u ON p.usuario_id = u.id
+      LEFT JOIN clientes c ON p.cliente_id = c.id
+      WHERE p.tipo_entrega = ? 
+        AND p.pagado = 1
+        AND p.deleted_at IS NULL
+      ORDER BY p.fecha_pago DESC
+    `, [tipo_entrega]);
+    
+    return rows.map(p => {
+      if (p.usuario_nombre) {
+        p.usuario_nombre_completo = p.usuario_apellido 
+          ? `${p.usuario_nombre} ${p.usuario_apellido}` 
+          : p.usuario_nombre;
+      }
+      return p;
+    });
+  }
+
+  // ✅ CREATE
   static async create(pedido) {
     const { 
       mesa_id, 
@@ -215,78 +366,6 @@ class Pedido {
       [id]
     );
     return result.affectedRows > 0;
-  }
-
-  // ✅ FIND PENDIENTES
-  static async findPendientes() {
-    const [rows] = await db.query(`
-      SELECT p.*, 
-             u.nombre as usuario_nombre, 
-             u.rol as usuario_rol,
-             c.nombre as cliente_nombre_real
-      FROM pedidos p
-      LEFT JOIN usuarios u ON p.usuario_id = u.id
-      LEFT JOIN clientes c ON p.cliente_id = c.id
-      WHERE p.estado IN ('pendiente', 'preparando', 'listo') 
-        AND (p.pagado = 0 OR p.pagado IS NULL)
-        AND p.deleted_at IS NULL
-      ORDER BY p.created_at DESC
-    `);
-    return rows;
-  }
-
-  // ✅ FIND PAGADOS
-  static async findPagados() {
-    const [rows] = await db.query(`
-      SELECT p.*, 
-             u.nombre as usuario_nombre, 
-             u.rol as usuario_rol,
-             c.nombre as cliente_nombre_real
-      FROM pedidos p
-      LEFT JOIN usuarios u ON p.usuario_id = u.id
-      LEFT JOIN clientes c ON p.cliente_id = c.id
-      WHERE p.estado = 'entregado' 
-        AND p.pagado = 1
-        AND p.deleted_at IS NULL
-      ORDER BY p.fecha_pago DESC
-    `);
-    return rows;
-  }
-
-  // ✅ FIND BY TIPO ENTREGA
-  static async findByTipoEntrega(tipo_entrega) {
-    const [rows] = await db.query(`
-      SELECT p.*, 
-             u.nombre as usuario_nombre, 
-             u.rol as usuario_rol,
-             c.nombre as cliente_nombre_real
-      FROM pedidos p
-      LEFT JOIN usuarios u ON p.usuario_id = u.id
-      LEFT JOIN clientes c ON p.cliente_id = c.id
-      WHERE p.tipo_entrega = ? 
-        AND p.pagado = 1
-        AND p.deleted_at IS NULL
-      ORDER BY p.fecha_pago DESC
-    `, [tipo_entrega]);
-    return rows;
-  }
-
-  // ✅ FIND ENTREGADOS POR USUARIO
-  static async findEntregadosByUsuario(usuarioId) {
-    const [rows] = await db.query(`
-      SELECT p.*, 
-             u.nombre as usuario_nombre, 
-             u.rol as usuario_rol,
-             c.nombre as cliente_nombre_real
-      FROM pedidos p
-      LEFT JOIN usuarios u ON p.usuario_id = u.id
-      LEFT JOIN clientes c ON p.cliente_id = c.id
-      WHERE p.estado = 'entregado'
-        AND p.usuario_id = ?
-        AND p.deleted_at IS NULL
-      ORDER BY p.fecha_pago DESC, p.created_at DESC
-    `, [usuarioId]);
-    return rows;
   }
 }
 
