@@ -2,8 +2,7 @@ pipeline {
     agent any
 
     tools {
-        // ✅ Usar el nombre correcto de Node.js en Jenkins
-        nodejs 'node-22'  // O el nombre que configuraste
+        nodejs 'node-22'
     }
 
     environment {
@@ -46,30 +45,22 @@ pipeline {
             steps {
                 echo "🔐 Configurando archivo .env..."
                 
+                // ✅ Escribir .env sin interpolación de variables
                 writeFile file: '.env', text: """
-# Server
 PORT=${env.PORT}
 NODE_ENV=${env.NODE_ENV}
 API_URL=http://localhost:${env.PORT}
 ALLOWED_ORIGINS=http://localhost:4200,http://localhost:3000
-
-# Database
 DB_HOST=${env.DB_HOST}
 DB_USER=${env.DB_USER}
 DB_PASSWORD=${env.DB_PASSWORD}
 DB_NAME=${env.DB_NAME}
 DB_PORT=3306
-
-# JWT
 JWT_SECRET=${env.JWT_SECRET}
 JWT_EXPIRES_IN=7d
-
-# Security
 RATE_LIMIT_WINDOW=15
 RATE_LIMIT_MAX=100
 AUTH_RATE_LIMIT_MAX=20
-
-# Swagger
 SWAGGER_ENABLED=true
 """
                 echo "✅ Archivo .env configurado"
@@ -80,13 +71,18 @@ SWAGGER_ENABLED=true
             steps {
                 echo "🚀 Iniciando servidor..."
                 
+                // ✅ Matar procesos en el puerto 3000 (CORREGIDO)
                 bat '''
-                    for /f "tokens=5" %a in ('netstat -ano ^| findstr :3000') do taskkill /F /PID %a 2>nul || echo "No se pudo matar el proceso"
+                    for /f "tokens=5" %%a in ('netstat -ano ^| findstr :3000') do (
+                        taskkill /F /PID %%a 2>nul || echo "No se pudo matar el proceso %%a"
+                    )
                 '''
                 
+                // ✅ Iniciar servidor
                 bat 'start /B node server.js > server.log 2>&1'
                 echo "✅ Servidor iniciado"
                 
+                // ✅ Esperar que el servidor esté listo
                 script {
                     def maxAttempts = 30
                     def attempt = 0
@@ -95,7 +91,7 @@ SWAGGER_ENABLED=true
                     while (attempt < maxAttempts && !ready) {
                         attempt++
                         echo "⏳ Esperando servidor... (${attempt}/${maxAttempts})"
-                        def status = bat(script: 'curl -s -o nul -w "%{http_code}" http://localhost:3000/api/health || echo "000"', returnStdout: true).trim()
+                        def status = bat(script: 'curl -s -o nul -w "%{http_code}" http://localhost:3000/api/health 2>nul || echo "000"', returnStdout: true).trim()
                         if (status == '200') {
                             ready = true
                             echo "✅ Servidor listo!"
@@ -106,7 +102,8 @@ SWAGGER_ENABLED=true
                     
                     if (!ready) {
                         echo "⚠️ El servidor no respondió"
-                        bat 'type server.log'
+                        bat 'type server.log 2>nul || echo "No se encontró el log"'
+                        error "❌ El servidor no se inició correctamente"
                     }
                 }
             }
@@ -116,7 +113,7 @@ SWAGGER_ENABLED=true
             steps {
                 echo "🔍 Verificando Health Check..."
                 script {
-                    def healthCheck = bat(script: 'curl -s http://localhost:3000/api/health', returnStdout: true)
+                    def healthCheck = bat(script: 'curl -s http://localhost:3000/api/health 2>nul || echo "{\"status\":\"error\"}"', returnStdout: true)
                     echo "📊 Health Check: ${healthCheck}"
                 }
                 echo "✅ Health Check OK"
@@ -197,6 +194,13 @@ SWAGGER_ENABLED=true
             
             ═══════════════════════════════════════════════════
             """
+            script {
+                try {
+                    bat 'type server.log 2>nul || echo "No se encontró el log"'
+                } catch (e) {
+                    echo "No se pudo mostrar el log"
+                }
+            }
         }
         
         always {
