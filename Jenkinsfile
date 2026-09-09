@@ -80,7 +80,7 @@ SWAGGER_ENABLED=true
                 
                 // Matar procesos en el puerto 3000
                 bat '''
-                    for /f "tokens=5" %a in (\'netstat -ano ^| findstr :3000\') do taskkill /F /PID %a 2>nul || echo "No se pudo matar el proceso"
+                    for /f "tokens=5" %a in ('netstat -ano ^| findstr :3000') do taskkill /F /PID %a 2>nul || echo "No se pudo matar el proceso"
                 '''
                 
                 // Iniciar servidor
@@ -175,7 +175,6 @@ SWAGGER_ENABLED=true
                                 <li>Swagger: http://localhost:${env.PORT}/api/docs ✅</li>
                             </ul>
                         </div>
-                    </body>
                     </html>
                     """
                     
