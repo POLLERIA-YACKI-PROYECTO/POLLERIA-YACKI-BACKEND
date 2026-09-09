@@ -1,10 +1,11 @@
 // server.js
 const express = require('express');
-const path = require('path'); // ✅ IMPORTANTE: debe estar importado
+const path = require('path');
 const dotenv = require('dotenv');
 const { securityMiddleware } = require('./src/config/security');
 const { swaggerUi, specs } = require('./src/config/swagger');
 const { logger } = require('./src/utils/logger');
+const { authLimiter, generalLimiter } = require('./src/middleware/rate-limit');
 
 dotenv.config();
 
@@ -17,21 +18,31 @@ const PORT = process.env.PORT || 3000;
 securityMiddleware(app);
 
 // ============================================
+// ✅ RATE LIMIT - SOLO APLICAR SI NO ES DESARROLLO
+// ============================================
+const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
+
+if (!isDevelopment) {
+  console.log('🔒 Rate limit activado');
+  // Aplicar rate limit general a todas las rutas API
+  app.use('/api', generalLimiter);
+  // Aplicar rate limit más permisivo a rutas de autenticación
+  app.use('/api/auth', authLimiter);
+} else {
+  console.log('🔓 Rate limit desactivado (modo desarrollo)');
+}
+
+// ============================================
 // ✅ ARCHIVOS ESTÁTICOS (IMÁGENES)
 // ============================================
-// Servir la carpeta uploads como estática
 app.use(
   "/uploads",
   express.static(path.join(__dirname, "uploads"), {
     setHeaders: (response) => {
       response.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-
-      response.setHeader(
-        "Access-Control-Allow-Origin",
-        "http://localhost:4200",
-      );
+      response.setHeader("Access-Control-Allow-Origin", "http://localhost:4200");
     },
-  }),
+  })
 );
 
 // ============================================
@@ -85,7 +96,8 @@ app.get('/api/health', async (req, res) => {
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       database: 'connected',
-      environment: process.env.NODE_ENV || 'development'
+      environment: process.env.NODE_ENV || 'development',
+      rateLimit: isDevelopment ? 'disabled' : 'enabled'
     });
   } catch (error) {
     logger.error('❌ Health check falló:', error);
@@ -130,6 +142,7 @@ app.listen(PORT, () => {
   console.log(`📚 Documentación API: http://localhost:${PORT}/api/docs`);
   console.log(`🔒 Seguridad activada`);
   console.log(`📁 Archivos estáticos: /uploads`);
+  console.log(`🚀 Modo: ${isDevelopment ? 'DESARROLLO (rate limit desactivado)' : 'PRODUCCIÓN'}`);
 });
 
 process.on('SIGTERM', () => {

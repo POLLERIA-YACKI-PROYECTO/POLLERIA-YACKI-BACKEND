@@ -4,22 +4,13 @@ const router = express.Router();
 const configController = require('../controllers/configuracion.controller');
 const { verifyToken, isAdmin } = require('../middleware/auth');
 
-// 🔒 Todas las rutas requieren autenticación y admin
-router.use(verifyToken, isAdmin);
-
-// Obtener toda la configuración
+// 🔓 RUTAS PÚBLICAS - No requieren autenticación (accesibles para todos)
 router.get('/', configController.getAll);
-
-// Obtener configuración por clave
 router.get('/:clave', configController.getByClave);
 
-// Crear nueva configuración
-router.post('/', configController.create);
-
-// Actualizar configuración
-router.put('/:clave', configController.update);
-
-// Eliminar configuración
-router.delete('/:clave', configController.delete);
+// 🔒 RUTAS PROTEGIDAS - Solo Admin (requieren autenticación)
+router.post('/', verifyToken, isAdmin, configController.create);
+router.put('/:clave', verifyToken, isAdmin, configController.update);
+router.delete('/:clave', verifyToken, isAdmin, configController.delete);
 
 module.exports = router;
