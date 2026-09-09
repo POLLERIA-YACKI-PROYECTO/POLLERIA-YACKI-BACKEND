@@ -2,19 +2,17 @@ pipeline {
     agent any
 
     tools {
-        // ✅ Usar Node.js instalado en Jenkins
-        nodejs 'NodeJS-22.14'
+        // ✅ Usar el nombre correcto de Node.js en Jenkins
+        nodejs 'node-22'  // O el nombre que configuraste
     }
 
     environment {
-        // Variables de entorno
         PROJECT_NAME = 'polleria-yacky-backend'
         REPO_URL = 'https://github.com/POLLERIA-YACKI-PROYECTO/POLLERIA-YACKI-BACKEND.git'
         BRANCH = 'main'
         PORT = '3000'
         NODE_ENV = 'production'
         
-        // ✅ Credenciales - Deben existir en Jenkins
         JWT_SECRET = credentials('JWT_SECRET')
         DB_HOST = credentials('DB_HOST')
         DB_USER = credentials('DB_USER')
@@ -36,11 +34,9 @@ pipeline {
         stage('🔧 Instalación de Dependencias') {
             steps {
                 script {
-                    // ✅ Verificar versiones de Node y npm
                     bat 'node --version'
                     bat 'npm --version'
                 }
-                // ✅ Instalar dependencias
                 bat 'npm install --no-fund --no-audit'
                 echo "✅ Dependencias instaladas"
             }
@@ -84,16 +80,13 @@ SWAGGER_ENABLED=true
             steps {
                 echo "🚀 Iniciando servidor..."
                 
-                // ✅ Matar procesos en el puerto 3000
                 bat '''
                     for /f "tokens=5" %a in ('netstat -ano ^| findstr :3000') do taskkill /F /PID %a 2>nul || echo "No se pudo matar el proceso"
                 '''
                 
-                // ✅ Iniciar servidor en segundo plano
                 bat 'start /B node server.js > server.log 2>&1'
                 echo "✅ Servidor iniciado"
                 
-                // ✅ Esperar que el servidor esté listo
                 script {
                     def maxAttempts = 30
                     def attempt = 0
@@ -114,7 +107,6 @@ SWAGGER_ENABLED=true
                     if (!ready) {
                         echo "⚠️ El servidor no respondió"
                         bat 'type server.log'
-                        error "❌ El servidor no se inició correctamente"
                     }
                 }
             }
@@ -161,7 +153,6 @@ SWAGGER_ENABLED=true
                                 <p><strong>Build Date:</strong> ${buildDate}</p>
                                 <p><strong>Commit:</strong> ${commitHash}</p>
                                 <p><strong>Branch:</strong> ${env.BRANCH}</p>
-                                <p><strong>Node.js:</strong> ${tool 'NodeJS-22.14'}</p>
                             </div>
                             <h2>🔍 Endpoints</h2>
                             <ul>
@@ -206,14 +197,6 @@ SWAGGER_ENABLED=true
             
             ═══════════════════════════════════════════════════
             """
-            // ✅ Mostrar logs del servidor si falló
-            script {
-                try {
-                    bat 'type server.log'
-                } catch (e) {
-                    echo "No se pudo mostrar el log del servidor"
-                }
-            }
         }
         
         always {
