@@ -3,15 +3,21 @@ const express = require('express');
 const router = express.Router();
 const productoController = require('../controllers/producto.controller');
 const { verifyToken, isAdmin } = require('../middleware/auth');
+
+// ✅ Importar correctamente el objeto con upload y handleMulterError
 const { upload, handleMulterError } = require('../config/multer');
 
+// ============================================
 // ✅ RUTAS PÚBLICAS
+// ============================================
 router.get('/', productoController.getAll);
 router.get('/disponibles', productoController.getDisponibles);
 router.get('/categoria/:categoriaId', productoController.getByCategoria);
 router.get('/:id', productoController.getById);
 
+// ============================================
 // 🔒 RUTAS PROTEGIDAS - Solo Admin
+// ============================================
 router.post('/', 
   verifyToken, 
   isAdmin,

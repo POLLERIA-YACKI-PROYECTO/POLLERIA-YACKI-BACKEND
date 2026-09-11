@@ -1,151 +1,37 @@
-// server.js
-const express = require('express');
-const path = require('path');
-const dotenv = require('dotenv');
-const { securityMiddleware } = require('./src/config/security');
-const { swaggerUi, specs } = require('./src/config/swagger');
+// server.js (en la raíz del proyecto)
+// ============================================
+// SERVIDOR - SOLO INICIA LA APP
+// ============================================
+// Este archivo SOLO inicia el servidor. La app está en src/app.js
+// Esto permite que los tests importen la app sin iniciar el servidor.
+
+const app = require('./src/app');
 const { logger } = require('./src/utils/logger');
-const { authLimiter, generalLimiter } = require('./src/middleware/rate-limit');
 
-dotenv.config();
-
-const app = express();
 const PORT = process.env.PORT || 3000;
-
-// ============================================
-// MIDDLEWARES DE SEGURIDAD
-// ============================================
-securityMiddleware(app);
-
-// ============================================
-// ✅ RATE LIMIT - SOLO APLICAR SI NO ES DESARROLLO
-// ============================================
 const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
 
-if (!isDevelopment) {
-  console.log('🔒 Rate limit activado');
-  // Aplicar rate limit general a todas las rutas API
-  app.use('/api', generalLimiter);
-  // Aplicar rate limit más permisivo a rutas de autenticación
-  app.use('/api/auth', authLimiter);
-} else {
-  console.log('🔓 Rate limit desactivado (modo desarrollo)');
-}
-
 // ============================================
-// ✅ ARCHIVOS ESTÁTICOS (IMÁGENES)
+// NO INICIAR SERVIDOR EN MODO TEST
 // ============================================
-app.use(
-  "/uploads",
-  express.static(path.join(__dirname, "uploads"), {
-    setHeaders: (response) => {
-      response.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-      response.setHeader("Access-Control-Allow-Origin", "http://localhost:4200");
-    },
-  })
-);
-
-// ============================================
-// SWAGGER DOCUMENTATION
-// ============================================
-if (process.env.SWAGGER_ENABLED !== 'false') {
-  app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(specs, {
-    explorer: true,
-    customCss: `
-      .swagger-ui .topbar { display: none }
-      .swagger-ui .info .title { color: #e67e22 }
-    `,
-    swaggerOptions: {
-      persistAuthorization: true,
-      displayRequestDuration: true,
-      filter: true,
-      tryItOutEnabled: true,
-      docExpansion: 'list'
-    }
-  }));
-  
-  app.get('/api/docs.json', (req, res) => {
-    res.setHeader('Content-Type', 'application/json');
-    res.send(specs);
+// Cuando se ejecutan tests con Jest, NODE_ENV=test.
+// Supertest se encarga de iniciar la app en un puerto efímero.
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`✅ Servidor corriendo en http://localhost:${PORT}`);
+    console.log(`📚 Documentación API: http://localhost:${PORT}/api/docs`);
+    console.log(`🔒 Seguridad activada`);
+    console.log(`📁 Archivos estáticos: /uploads`);
+    console.log(`🚀 Modo: ${isDevelopment ? 'DESARROLLO (rate limit desactivado)' : 'PRODUCCIÓN'}`);
   });
 }
 
 // ============================================
-// RUTAS
+// MANEJO DE SEÑALES
 // ============================================
-app.use('/api/auth', require('./src/routes/auth.routes'));
-app.use('/api/productos', require('./src/routes/producto.routes'));
-app.use('/api/categorias', require('./src/routes/categoria.routes'));
-app.use('/api/ventas', require('./src/routes/venta.routes'));
-app.use('/api/usuarios', require('./src/routes/usuario.routes'));
-app.use('/api/clientes', require('./src/routes/cliente.routes'));
-app.use('/api/pedidos', require('./src/routes/pedido.routes'));
-app.use('/api/reportes', require('./src/routes/reporte.routes'));
-app.use('/api/mesas', require('./src/routes/mesa.routes'));
-app.use('/api/configuracion', require('./src/routes/configuracion.routes'));
-
-// ============================================
-// HEALTH CHECK
-// ============================================
-app.get('/api/health', async (req, res) => {
-  try {
-    const db = require('./src/config/database');
-    await db.query('SELECT 1');
-    res.json({
-      status: 'OK',
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      database: 'connected',
-      environment: process.env.NODE_ENV || 'development',
-      rateLimit: isDevelopment ? 'disabled' : 'enabled'
-    });
-  } catch (error) {
-    logger.error('❌ Health check falló:', error);
-    res.status(503).json({
-      status: 'ERROR',
-      timestamp: new Date().toISOString(),
-      database: 'disconnected',
-      error: error.message
-    });
-  }
-});
-
-// ============================================
-// RUTA 404
-// ============================================
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    error: 'Ruta no encontrada'
-  });
-});
-
-// ============================================
-// ERROR HANDLER
-// ============================================
-app.use((err, req, res, next) => {
-  logger.error('❌ Error no controlado:', err);
-  
-  const isProduction = process.env.NODE_ENV === 'production';
-  res.status(500).json({
-    success: false,
-    error: isProduction ? 'Error interno del servidor' : err.message,
-    ...(isProduction ? {} : { stack: err.stack })
-  });
-});
-
-// ============================================
-// INICIAR SERVIDOR
-// ============================================
-app.listen(PORT, () => {
-  console.log(`✅ Servidor corriendo en http://localhost:${PORT}`);
-  console.log(`📚 Documentación API: http://localhost:${PORT}/api/docs`);
-  console.log(`🔒 Seguridad activada`);
-  console.log(`📁 Archivos estáticos: /uploads`);
-  console.log(`🚀 Modo: ${isDevelopment ? 'DESARROLLO (rate limit desactivado)' : 'PRODUCCIÓN'}`);
-});
-
 process.on('SIGTERM', () => {
   logger.info('🛑 Recibida señal SIGTERM, cerrando servidor...');
   process.exit(0);
 });
+
+module.exports = app;

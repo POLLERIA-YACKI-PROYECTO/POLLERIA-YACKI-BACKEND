@@ -13,8 +13,9 @@ router.get('/ventas', reporteController.getReporteVentas);
 // Reporte diario de cajero
 router.get('/diario-cajero', reporteController.getReporteDiarioCajero);
 
-// Reporte por cliente
+// ✅ Reporte por cliente (con alias para compatibilidad)
 router.get('/cliente', reporteController.getReportePorCliente);
+router.get('/por-cliente', reporteController.getReportePorCliente); // Alias
 
 // Reporte motorizada
 router.get('/motorizada', reporteController.getReporteMotorizada);
