@@ -4,16 +4,16 @@ require('dotenv').config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'polleria-yacky-secret-key-2026';
 
-console.log('🔑 JWT_SECRET configurado:', JWT_SECRET ? '✅ Definido' : '❌ No definido');
+console.log('JWT_SECRET configurado:', JWT_SECRET ? 'Definido' : 'No definido');
 
 exports.verifyToken = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     
-    console.log('🔐 Verificando token...');
+    console.log('Verificando token...');
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.log('❌ Token no proporcionado o formato inválido');
+      console.log('Token no proporcionado o formato inválido');
       return res.status(401).json({
         success: false,
         error: 'Token no proporcionado o formato inválido'
@@ -22,10 +22,10 @@ exports.verifyToken = (req, res, next) => {
 
     const token = authHeader.split(' ')[1];
     
-    console.log('📝 Token recibido (primeros 20 chars):', token.substring(0, 20) + '...');
+    console.log('Token recibido (primeros 20 chars):', token.substring(0, 20) + '...');
 
     const decoded = jwt.verify(token, JWT_SECRET);
-    console.log('✅ Token decodificado:', decoded);
+    console.log('Token decodificado:', decoded);
     
     req.userId = decoded.id;
     req.userRol = decoded.rol;
@@ -35,7 +35,7 @@ exports.verifyToken = (req, res, next) => {
     
     next();
   } catch (error) {
-    console.error('❌ Error en verifyToken:', error.message);
+    console.error('Error en verifyToken:', error.message);
     
     let mensaje = 'Token inválido o expirado';
     let codigo = error.message;
@@ -60,14 +60,14 @@ exports.verifyToken = (req, res, next) => {
 };
 
 exports.isAdmin = (req, res, next) => {
-  console.log('🔐 Verificando rol de admin...');
-  console.log('📝 Rol del usuario:', req.userRol);
+  console.log('Verificando rol de admin...');
+  console.log('Rol del usuario:', req.userRol);
   
   if (req.userRol === 'admin' || req.userRol === 'cajero') {
-    console.log('✅ Acceso permitido');
+    console.log('Acceso permitido');
     next();
   } else {
-    console.log('❌ Acceso denegado - Se requiere admin o cajero');
+    console.log('Acceso denegado - Se requiere admin o cajero');
     res.status(403).json({
       success: false,
       error: 'Acceso denegado. Se requiere rol de administrador o cajero'
@@ -76,14 +76,14 @@ exports.isAdmin = (req, res, next) => {
 };
 
 exports.isMesero = (req, res, next) => {
-  console.log('🔐 Verificando rol de mesero...');
-  console.log('📝 Rol del usuario:', req.userRol);
+  console.log('Verificando rol de mesero...');
+  console.log('Rol del usuario:', req.userRol);
   
   if (req.userRol === 'mesero') {
-    console.log('✅ Acceso permitido para mesero');
+    console.log('Acceso permitido para mesero');
     next();
   } else {
-    console.log('❌ Acceso denegado - Se requiere mesero');
+    console.log('Acceso denegado - Se requiere mesero');
     res.status(403).json({
       success: false,
       error: 'Acceso denegado. Se requiere rol de mesero'

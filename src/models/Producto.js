@@ -45,7 +45,7 @@ class Producto {
       disponible, agotado, imagen 
     } = producto;
     
-    // ✅ Si no hay imagen, usar la imagen por defecto
+    // Si no hay imagen, usar la imagen por defecto
     const imagenFinal = imagen || DEFAULT_IMAGE_NAME;
     
     const [result] = await db.query(
@@ -68,7 +68,7 @@ class Producto {
       disponible, agotado, imagen 
     } = producto;
     
-    // ✅ Si no se especifica imagen, mantener la actual
+    // Si no se especifica imagen, mantener la actual
     let imagenFinal = imagen;
     if (!imagenFinal) {
       const existing = await this.findById(id);

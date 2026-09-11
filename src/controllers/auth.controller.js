@@ -11,7 +11,7 @@ exports.loginAdmin = async (req, res) => {
   try {
     const { dni } = req.body;
     
-    console.log('🔐 Login admin con DNI:', dni);
+    console.log('Login admin con DNI:', dni);
     
     if (!dni || dni.length !== 8) {
       return res.status(400).json({
@@ -44,7 +44,7 @@ exports.loginAdmin = async (req, res) => {
 
     delete usuario.password;
 
-    console.log('✅ Login exitoso para:', usuario.nombre);
+    console.log('Login exitoso para:', usuario.nombre);
 
     res.json({
       success: true,
@@ -65,7 +65,7 @@ exports.loginMesero = async (req, res) => {
   try {
     const { dni } = req.body;
     
-    console.log('🔐 Login mesero con DNI:', dni);
+    console.log('Login mesero con DNI:', dni);
     
     if (!dni || dni.length !== 8) {
       return res.status(400).json({
@@ -98,7 +98,7 @@ exports.loginMesero = async (req, res) => {
 
     delete usuario.password;
 
-    console.log('✅ Login exitoso para mesero:', usuario.nombre);
+    console.log('Login exitoso para mesero:', usuario.nombre);
 
     res.json({
       success: true,
@@ -119,7 +119,7 @@ exports.login = async (req, res) => {
   try {
     const { dni } = req.body;
     
-    console.log('🔐 Login general con DNI:', dni);
+    console.log('Login general con DNI:', dni);
     
     if (!dni || dni.length !== 8) {
       return res.status(400).json({

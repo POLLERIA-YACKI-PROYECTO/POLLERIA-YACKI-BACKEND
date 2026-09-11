@@ -103,7 +103,7 @@ class Venta {
     return rows;
   }
 
-  // ✅ Método findByFecha - CORREGIDO
+  // Método findByFecha - CORREGIDO
   static async findByFecha(fechaInicio, fechaFin) {
     const [rows] = await db.query(`
       SELECT v.*, 
@@ -121,7 +121,7 @@ class Venta {
     return rows;
   }
 
-  // ✅ Método getResumenDiario
+  // Método getResumenDiario
   static async getResumenDiario(fecha) {
     const [rows] = await db.query(`
       SELECT 
@@ -141,7 +141,7 @@ class Venta {
     return rows[0] || { total_ventas: 0, total_recaudado: 0, promedio: 0 };
   }
 
-  // ✅ Método getVentasPorCliente
+  // Método getVentasPorCliente
   static async getVentasPorCliente(fechaInicio, fechaFin) {
     const [rows] = await db.query(`
       SELECT 

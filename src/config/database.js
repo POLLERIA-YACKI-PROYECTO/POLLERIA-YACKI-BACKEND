@@ -9,7 +9,7 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  // ✅ Configuración para manejar JSON
+  // Configuración para manejar JSON
   typeCast: function (field, next) {
     if (field.type === 'JSON') {
       return JSON.parse(field.string());

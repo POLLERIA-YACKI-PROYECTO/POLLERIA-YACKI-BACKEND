@@ -2,7 +2,7 @@
 const db = require('../config/database');
 
 class Pedido {
-  // ✅ FIND ALL - CORREGIDO
+  // FIND ALL - CORREGIDO
   static async findAll() {
     const [rows] = await db.query(`
       SELECT 
@@ -29,7 +29,7 @@ class Pedido {
     });
   }
 
-  // ✅ FIND BY ID - CORREGIDO
+  // FIND BY ID - CORREGIDO
   static async findById(id) {
     const [rows] = await db.query(`
       SELECT 
@@ -57,7 +57,7 @@ class Pedido {
     return null;
   }
 
-  // ✅ FIND BY USUARIO - CORREGIDO
+  // FIND BY USUARIO - CORREGIDO
   static async findByUsuario(usuarioId) {
     const [rows] = await db.query(`
       SELECT 
@@ -85,7 +85,7 @@ class Pedido {
     });
   }
 
-  // ✅ FIND PENDIENTES - CORREGIDO
+  // FIND PENDIENTES - CORREGIDO
   static async findPendientes() {
     const [rows] = await db.query(`
       SELECT 
@@ -114,7 +114,7 @@ class Pedido {
     });
   }
 
-  // ✅ FIND PAGADOS - CORREGIDO
+  // FIND PAGADOS - CORREGIDO
   static async findPagados() {
     const [rows] = await db.query(`
       SELECT 
@@ -143,7 +143,7 @@ class Pedido {
     });
   }
 
-  // ✅ FIND ENTREGADOS POR USUARIO - CORREGIDO
+  // FIND ENTREGADOS POR USUARIO - CORREGIDO
   static async findEntregadosByUsuario(usuarioId) {
     const [rows] = await db.query(`
       SELECT 
@@ -172,7 +172,7 @@ class Pedido {
     });
   }
 
-  // ✅ FIND BY TIPO ENTREGA - CORREGIDO
+  // FIND BY TIPO ENTREGA - CORREGIDO
   static async findByTipoEntrega(tipo_entrega) {
     const [rows] = await db.query(`
       SELECT 
@@ -201,7 +201,7 @@ class Pedido {
     });
   }
 
-  // ✅ CREATE
+  // CREATE
   static async create(pedido) {
     const { 
       mesa_id, 
@@ -242,11 +242,11 @@ class Pedido {
         itemsJson = JSON.stringify(parsed);
       }
     } catch (error) {
-      console.error('❌ Error al procesar items:', error);
+      console.error('Error al procesar items:', error);
       itemsJson = '[]';
     }
     
-    console.log('📝 Items JSON final:', itemsJson);
+    console.log('Items JSON final:', itemsJson);
     
     const [result] = await db.query(
       `INSERT INTO pedidos 
@@ -273,7 +273,7 @@ class Pedido {
     return { id: result.insertId, ...pedido };
   }
 
-  // ✅ CREAR VENTA
+  // CREAR VENTA
   static async crearVenta(venta) {
     const { 
       pedido_id,
@@ -307,7 +307,7 @@ class Pedido {
         itemsJson = JSON.stringify(itemsLimpios);
       }
     } catch (error) {
-      console.error('❌ Error al procesar items para venta:', error);
+      console.error('Error al procesar items para venta:', error);
       itemsJson = '[]';
     }
     
@@ -336,7 +336,7 @@ class Pedido {
     return { id: result.insertId, ...venta };
   }
 
-  // ✅ ACTUALIZAR ESTADO
+  // ACTUALIZAR ESTADO
   static async updateEstado(id, estado) {
     const [result] = await db.query(
       'UPDATE pedidos SET estado = ?, updated_at = NOW() WHERE id = ? AND deleted_at IS NULL',
@@ -345,7 +345,7 @@ class Pedido {
     return result.affectedRows > 0;
   }
 
-  // ✅ MARCAR PAGADO
+  // MARCAR PAGADO
   static async marcarPagado(id, metodo_pago) {
     const [result] = await db.query(
       `UPDATE pedidos 
@@ -359,7 +359,7 @@ class Pedido {
     return result.affectedRows > 0;
   }
 
-  // ✅ ELIMINAR (SOFT DELETE)
+  // ELIMINAR (SOFT DELETE)
   static async delete(id) {
     const [result] = await db.query(
       'UPDATE pedidos SET deleted_at = NOW() WHERE id = ?',

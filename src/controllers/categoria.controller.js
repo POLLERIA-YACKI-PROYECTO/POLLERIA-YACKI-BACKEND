@@ -36,7 +36,7 @@ exports.getById = async (req, res) => {
   }
 };
 
-// ✅ NUEVO: Obtener productos por categoría
+// NUEVO: Obtener productos por categoría
 exports.getProductos = async (req, res) => {
   try {
     const { id } = req.params;

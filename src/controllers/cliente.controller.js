@@ -42,28 +42,28 @@ exports.getById = async (req, res) => {
   }
 };
 
-// ✅ CREAR CLIENTE - CORREGIDO
+// CREAR CLIENTE - CORREGIDO
 exports.create = async (req, res) => {
   try {
-    console.log('📝 === CREANDO CLIENTE ===');
-    console.log('📝 Body recibido:', req.body);
+    console.log('=== CREANDO CLIENTE ===');
+    console.log('Body recibido:', req.body);
     
     const { nombre, apellido, dni, telefono, email, direccion } = req.body;
     
-    // ✅ Validar que el nombre existe
+    // Validar que el nombre existe
     if (!nombre || nombre.trim() === '') {
-      console.log('❌ Nombre es requerido');
+      console.log('Nombre es requerido');
       return res.status(400).json({ 
         success: false,
         error: 'El nombre es requerido' 
       });
     }
 
-    // ✅ Validar DNI (si se proporciona, debe tener 8 dígitos)
+    // Validar DNI (si se proporciona, debe tener 8 dígitos)
     if (dni && dni.trim() !== '') {
       const dniLimpio = dni.trim();
       if (!/^[0-9]{8}$/.test(dniLimpio)) {
-        console.log('❌ DNI inválido:', dniLimpio);
+        console.log('DNI inválido:', dniLimpio);
         return res.status(400).json({ 
           success: false,
           error: 'El DNI debe tener 8 dígitos' 
@@ -73,7 +73,7 @@ exports.create = async (req, res) => {
       // Verificar si el DNI ya existe
       const existe = await Cliente.findByDni(dniLimpio);
       if (existe) {
-        console.log('❌ DNI ya registrado:', dniLimpio);
+        console.log('DNI ya registrado:', dniLimpio);
         return res.status(400).json({ 
           success: false,
           error: 'El DNI ya está registrado' 
@@ -81,7 +81,7 @@ exports.create = async (req, res) => {
       }
     }
 
-    // ✅ Crear el cliente
+    // Crear el cliente
     const nuevoCliente = await Cliente.create({
       nombre: nombre.trim(),
       apellido: apellido ? apellido.trim() : null,
@@ -91,7 +91,7 @@ exports.create = async (req, res) => {
       direccion: direccion ? direccion.trim() : null
     });
 
-    console.log('✅ Cliente creado:', nuevoCliente);
+    console.log('Cliente creado:', nuevoCliente);
 
     res.status(201).json({
       success: true,
@@ -99,7 +99,7 @@ exports.create = async (req, res) => {
       cliente: nuevoCliente
     });
   } catch (error) {
-    console.error('❌ Error en create cliente:', error);
+    console.error('Error en create cliente:', error);
     res.status(500).json({ 
       success: false,
       error: 'Error al crear cliente',

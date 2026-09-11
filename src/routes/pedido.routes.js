@@ -5,7 +5,7 @@ const pedidoController = require('../controllers/pedido.controller');
 const { verifyToken, isAdmin } = require('../middleware/auth');
 
 // ============================================
-// ✅ RUTAS ESPECÍFICAS PRIMERO (sin parámetros)
+//  RUTAS ESPECÍFICAS PRIMERO (sin parámetros)
 // ============================================
 
 // Obtener pedidos pendientes
@@ -21,7 +21,7 @@ router.get('/entregados/mesero', verifyToken, pedidoController.getPedidosPagados
 router.get('/tipo/:tipo', verifyToken, pedidoController.getByTipoEntrega);
 
 // ============================================
-// 🔒 RUTAS CON PARÁMETROS (después de las específicas)
+// RUTAS CON PARÁMETROS (después de las específicas)
 // ============================================
 
 // Obtener todos los pedidos

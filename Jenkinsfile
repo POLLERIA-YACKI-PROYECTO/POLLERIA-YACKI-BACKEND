@@ -64,7 +64,7 @@ pipeline {
                     url: "${env.REPO_URL}",
                     credentialsId: 'Ardamins'
                 
-                echo "✅ Código clonado exitosamente"
+                echo "Código clonado exitosamente"
             }
         }
 
@@ -80,7 +80,7 @@ pipeline {
                 // --no-audit: No ejecutar auditoría de seguridad
                 bat 'npm install --no-fund --no-audit'
                 
-                echo "✅ Dependencias instaladas"
+                echo "Dependencias instaladas"
             }
         }
 
@@ -103,7 +103,7 @@ DB_PASSWORD=${env.DB_PASSWORD}
 DB_NAME=${env.DB_NAME}
 DB_PORT=3306
 """
-                echo "✅ Archivo .env configurado"
+                echo "Archivo .env configurado"
             }
         }
 
@@ -114,7 +114,7 @@ DB_PORT=3306
         // Qué hace: Ejecuta node server.js y guarda los logs
         stage('Iniciar Servidor') {
             steps {
-                echo "🚀 Iniciando servidor..."
+                echo "Iniciando servidor..."
                 
                 // Iniciar servidor en segundo plano
                 // start /B: Ejecuta en background sin ventana
@@ -122,7 +122,7 @@ DB_PORT=3306
                 // 2>&1: Redirige errores también al log
                 bat 'start /B node server.js > server.log 2>&1'
                 
-                echo "✅ Servidor iniciado"
+                echo "Servidor iniciado"
                 
                 // Esperar 8 segundos para que el servidor se inicialice
                 // Esto da tiempo a que Node.js cargue todas las dependencias
@@ -137,7 +137,7 @@ DB_PORT=3306
         // Qué hace: Consulta el endpoint /api/health
         stage('Health Check') {
             steps {
-                echo "🔍 Verificando Health Check..."
+                echo "Verificando Health Check..."
                 
                 script {
                     try {
@@ -152,22 +152,22 @@ DB_PORT=3306
                             }
                         ''').trim()
                         
-                        echo "📊 Estado del servidor: ${healthCheck}"
+                        echo "Estado del servidor: ${healthCheck}"
                         
                         // Si el servidor responde con 200, está OK
                         if (healthCheck == '200') {
-                            echo "✅ Health Check OK"
+                            echo "Health Check OK"
                         } else {
                             // Si no responde, mostrar logs y fallar
-                            echo "⚠️ El servidor respondió con código: ${healthCheck}"
+                            echo "El servidor respondió con código: ${healthCheck}"
                             bat 'type server.log'
-                            error "❌ Health Check falló"
+                            error "Health Check falló"
                         }
                     } catch (e) {
                         // Si hay error en la petición, mostrar logs
-                        echo "❌ Error al verificar Health Check"
+                        echo "Error al verificar Health Check"
                         bat 'type server.log'
-                        error "❌ Health Check falló"
+                        error "Health Check falló"
                     }
                 }
             }

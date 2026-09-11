@@ -1,10 +1,10 @@
 // src/middleware/rate-limit.js
 const rateLimit = require('express-rate-limit');
 
-// ✅ CONFIGURACIÓN PARA DESARROLLO - DESACTIVAR RATE LIMIT
+// CONFIGURACIÓN PARA DESARROLLO - DESACTIVAR RATE LIMIT
 const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
 
-console.log(`🚀 Rate limit: ${isDevelopment ? 'DESACTIVADO (modo desarrollo)' : 'ACTIVADO'}`);
+console.log(`Rate limit: ${isDevelopment ? 'DESACTIVADO (modo desarrollo)' : 'ACTIVADO'}`);
 
 // Rate limit para rutas de autenticación
 const authLimiter = rateLimit({

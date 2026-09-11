@@ -18,11 +18,11 @@ const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE
 // Supertest se encarga de iniciar la app en un puerto efímero.
 if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
-    console.log(`✅ Servidor corriendo en http://localhost:${PORT}`);
-    console.log(`📚 Documentación API: http://localhost:${PORT}/api/docs`);
-    console.log(`🔒 Seguridad activada`);
-    console.log(`📁 Archivos estáticos: /uploads`);
-    console.log(`🚀 Modo: ${isDevelopment ? 'DESARROLLO (rate limit desactivado)' : 'PRODUCCIÓN'}`);
+    console.log(`Servidor corriendo en http://localhost:${PORT}`);
+    console.log(`Documentación API: http://localhost:${PORT}/api/docs`);
+    console.log(`Seguridad activada`);
+    console.log(`Archivos estáticos: /uploads`);
+    console.log(`Modo: ${isDevelopment ? 'DESARROLLO (rate limit desactivado)' : 'PRODUCCIÓN'}`);
   });
 }
 
@@ -30,7 +30,7 @@ if (process.env.NODE_ENV !== 'test') {
 // MANEJO DE SEÑALES
 // ============================================
 process.on('SIGTERM', () => {
-  logger.info('🛑 Recibida señal SIGTERM, cerrando servidor...');
+  logger.info('Recibida señal SIGTERM, cerrando servidor...');
   process.exit(0);
 });
 

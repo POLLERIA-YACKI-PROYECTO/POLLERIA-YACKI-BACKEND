@@ -51,7 +51,7 @@ class Categoria {
     return rows[0];
   }
 
-  // ✅ NUEVO: Obtener productos por categoría
+  // NUEVO: Obtener productos por categoría
   static async getProductosByCategoria(categoriaId) {
     const [rows] = await db.query(`
       SELECT * FROM productos 

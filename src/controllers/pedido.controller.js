@@ -10,9 +10,9 @@ exports.getAll = async (req, res) => {
     const usuarioId = req.userId;
     const userRol = req.userRol;
     
-    console.log('📝 === OBTENIENDO PEDIDOS ===');
-    console.log('📝 Usuario ID:', usuarioId);
-    console.log('📝 Rol:', userRol);
+    console.log('=== OBTENIENDO PEDIDOS ===');
+    console.log('Usuario ID:', usuarioId);
+    console.log('Rol:', userRol);
     
     let pedidos;
     
@@ -42,7 +42,7 @@ exports.getAll = async (req, res) => {
       return p;
     });
     
-    console.log(`✅ ${pedidos.length} pedidos encontrados`);
+    console.log(`${pedidos.length} pedidos encontrados`);
     res.json(pedidos);
   } catch (error) {
     console.error('Error en getAll pedidos:', error);
@@ -88,9 +88,9 @@ exports.getById = async (req, res) => {
 // ============================================
 exports.create = async (req, res) => {
   try {
-    console.log('📝 === CREANDO PEDIDO ===');
-    console.log('📝 Body:', req.body);
-    console.log('📝 Usuario ID:', req.userId);
+    console.log('=== CREANDO PEDIDO ===');
+    console.log('Body:', req.body);
+    console.log('Usuario ID:', req.userId);
 
     const { 
       mesa_id,
@@ -108,12 +108,12 @@ exports.create = async (req, res) => {
     const usuario_id = req.userId;
     
     if (!usuario_id) {
-      console.log('❌ Usuario no autenticado');
+      console.log('Usuario no autenticado');
       return res.status(401).json({ error: 'Usuario no autenticado' });
     }
 
     if (!items || items.length === 0) {
-      console.log('❌ El pedido debe tener al menos un item');
+      console.log('El pedido debe tener al menos un item');
       return res.status(400).json({ error: 'El pedido debe tener al menos un item' });
     }
 
@@ -141,17 +141,17 @@ exports.create = async (req, res) => {
             }));
           }
         } catch (e) {
-          console.error('❌ Error al parsear items string:', e);
+          console.error('Error al parsear items string:', e);
           itemsProcesados = [];
         }
       }
     } catch (error) {
-      console.error('❌ Error al procesar items:', error);
+      console.error('Error al procesar items:', error);
       itemsProcesados = [];
     }
 
     if (itemsProcesados.length === 0) {
-      console.log('❌ No se pudieron procesar los items correctamente');
+      console.log('No se pudieron procesar los items correctamente');
       return res.status(400).json({ 
         success: false,
         error: 'Los items del pedido no son válidos' 
@@ -166,10 +166,10 @@ exports.create = async (req, res) => {
     const igv = subtotal * 0.18;
     const totalFinal = total || (subtotal + igv);
 
-    console.log('📝 Items procesados:', JSON.stringify(itemsProcesados));
-    console.log('📝 Subtotal:', subtotal);
-    console.log('📝 IGV:', igv);
-    console.log('📝 Total:', totalFinal);
+    console.log('Items procesados:', JSON.stringify(itemsProcesados));
+    console.log('Subtotal:', subtotal);
+    console.log('IGV:', igv);
+    console.log('Total:', totalFinal);
 
     const nuevoPedido = await Pedido.create({
       usuario_id,
@@ -188,7 +188,7 @@ exports.create = async (req, res) => {
       pagado: pagado || 0
     });
 
-    console.log('✅ Pedido creado con ID:', nuevoPedido.id);
+    console.log('Pedido creado con ID:', nuevoPedido.id);
 
     const pedidoCompleto = await Pedido.findById(nuevoPedido.id);
     if (pedidoCompleto && typeof pedidoCompleto.items === 'string') {
@@ -200,7 +200,7 @@ exports.create = async (req, res) => {
     }
 
     if (pagado === true || pagado === 1) {
-      console.log('📝 Pedido marcado como pagado directamente');
+      console.log('Pedido marcado como pagado directamente');
       
       await Pedido.updateEstado(nuevoPedido.id, 'entregado');
       
@@ -230,8 +230,8 @@ exports.create = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Error en create:', error);
-    console.error('❌ Stack:', error.stack);
+    console.error('Error en create:', error);
+    console.error('Stack:', error.stack);
     res.status(500).json({ 
       success: false,
       error: 'Error al crear pedido',
@@ -248,10 +248,10 @@ exports.marcarPagado = async (req, res) => {
     const { id } = req.params;
     const { metodo_pago } = req.body;
     
-    console.log('📝 === MARCANDO PAGO ===');
-    console.log('📝 Pedido ID:', id);
-    console.log('📝 Método de pago:', metodo_pago);
-    console.log('📝 Usuario ID:', req.userId);
+    console.log('=== MARCANDO PAGO ===');
+    console.log('Pedido ID:', id);
+    console.log('Método de pago:', metodo_pago);
+    console.log('Usuario ID:', req.userId);
     
     if (!metodo_pago) {
       return res.status(400).json({ 
@@ -346,7 +346,7 @@ exports.marcarPagado = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Error en marcarPagado:', error);
+    console.error('Error en marcarPagado:', error);
     res.status(500).json({ 
       success: false,
       error: 'Error al marcar pedido como pagado'
@@ -359,7 +359,7 @@ exports.marcarPagado = async (req, res) => {
 // ============================================
 exports.getPendientes = async (req, res) => {
   try {
-    console.log('📝 === OBTENIENDO PEDIDOS PENDIENTES ===');
+    console.log('=== OBTENIENDO PEDIDOS PENDIENTES ===');
     
     const pedidos = await Pedido.findPendientes();
     
@@ -373,10 +373,10 @@ exports.getPendientes = async (req, res) => {
       }
     });
     
-    console.log(`✅ ${pedidos.length} pedidos pendientes encontrados`);
+    console.log(`${pedidos.length} pedidos pendientes encontrados`);
     res.json(pedidos);
   } catch (error) {
-    console.error('❌ Error en getPendientes:', error);
+    console.error('Error en getPendientes:', error);
     res.status(500).json({ error: 'Error al obtener pedidos pendientes' });
   }
 };
@@ -386,7 +386,7 @@ exports.getPendientes = async (req, res) => {
 // ============================================
 exports.getPagados = async (req, res) => {
   try {
-    console.log('📝 === OBTENIENDO PEDIDOS PAGADOS ===');
+    console.log('=== OBTENIENDO PEDIDOS PAGADOS ===');
     
     const pedidos = await Pedido.findPagados();
     
@@ -400,10 +400,10 @@ exports.getPagados = async (req, res) => {
       }
     });
     
-    console.log(`✅ ${pedidos.length} pedidos pagados encontrados`);
+    console.log(`${pedidos.length} pedidos pagados encontrados`);
     res.json(pedidos);
   } catch (error) {
-    console.error('❌ Error en getPagados:', error);
+    console.error('Error en getPagados:', error);
     res.status(500).json({ error: 'Error al obtener pedidos pagados' });
   }
 };
@@ -415,7 +415,7 @@ exports.getByTipoEntrega = async (req, res) => {
   try {
     const { tipo } = req.params;
     
-    console.log(`📝 === OBTENIENDO PEDIDOS TIPO: ${tipo} ===`);
+    console.log(`=== OBTENIENDO PEDIDOS TIPO: ${tipo} ===`);
     
     const pedidos = await Pedido.findByTipoEntrega(tipo);
     
@@ -429,10 +429,10 @@ exports.getByTipoEntrega = async (req, res) => {
       }
     });
     
-    console.log(`✅ ${pedidos.length} pedidos tipo ${tipo} encontrados`);
+    console.log(`${pedidos.length} pedidos tipo ${tipo} encontrados`);
     res.json(pedidos);
   } catch (error) {
-    console.error('❌ Error en getByTipoEntrega:', error);
+    console.error('Error en getByTipoEntrega:', error);
     res.status(500).json({ error: 'Error al obtener pedidos por tipo' });
   }
 };
@@ -444,8 +444,8 @@ exports.getPedidosPagadosMesero = async (req, res) => {
   try {
     const usuarioId = req.userId;
     
-    console.log('📝 === PEDIDOS ENTREGADOS DEL MESERO ===');
-    console.log('📝 Mesero ID:', usuarioId);
+    console.log('=== PEDIDOS ENTREGADOS DEL MESERO ===');
+    console.log('Mesero ID:', usuarioId);
     
     if (!usuarioId) {
       return res.status(401).json({ 
@@ -466,10 +466,10 @@ exports.getPedidosPagadosMesero = async (req, res) => {
       }
     });
     
-    console.log(`✅ ${pedidos.length} pedidos entregados encontrados para el mesero`);
+    console.log(`${pedidos.length} pedidos entregados encontrados para el mesero`);
     res.json(pedidos);
   } catch (error) {
-    console.error('❌ Error en getPedidosPagadosMesero:', error);
+    console.error('Error en getPedidosPagadosMesero:', error);
     res.status(500).json({ 
       success: false,
       error: 'Error al obtener pedidos entregados del mesero'

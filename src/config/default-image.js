@@ -13,16 +13,16 @@ const ensureDefaultImage = () => {
   // Crear directorio si no existe
   if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
-    console.log('📁 Directorio de uploads creado:', uploadDir);
+    console.log('Directorio de uploads creado:', uploadDir);
   }
   
   // Verificar si la imagen por defecto existe
   if (!fs.existsSync(DEFAULT_IMAGE_PATH)) {
-    console.log('⚠️ Imagen por defecto no encontrada en:', DEFAULT_IMAGE_PATH);
-    console.log('📝 Coloca una imagen llamada "imagen.jpg" en la carpeta uploads/productos/');
-    console.log('📝 O crea un archivo manualmente');
+    console.log('Imagen por defecto no encontrada en:', DEFAULT_IMAGE_PATH);
+    console.log('Coloca una imagen llamada "imagen.jpg" en la carpeta uploads/productos/');
+    console.log('O crea un archivo manualmente');
   } else {
-    console.log('✅ Imagen por defecto encontrada:', DEFAULT_IMAGE_PATH);
+    console.log('Imagen por defecto encontrada:', DEFAULT_IMAGE_PATH);
   }
 };
 

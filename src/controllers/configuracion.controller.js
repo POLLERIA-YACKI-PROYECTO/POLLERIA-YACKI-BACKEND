@@ -7,13 +7,13 @@ const { logger } = require('../utils/logger');
 exports.getAll = async (req, res) => {
   try {
     const config = await Configuracion.findAll();
-    logger.info(`✅ Configuración obtenida: ${config.length} registros`);
+    logger.info(`Configuración obtenida: ${config.length} registros`);
     res.json({
       success: true,
       data: config
     });
   } catch (error) {
-    logger.error('❌ Error en getAll config:', error);
+    logger.error('Error en getAll config:', error);
     res.status(500).json({
       success: false,
       error: 'Error al obtener configuración'
@@ -42,7 +42,7 @@ exports.getByClave = async (req, res) => {
       data: config
     });
   } catch (error) {
-    logger.error('❌ Error en getByClave:', error);
+    logger.error('Error en getByClave:', error);
     res.status(500).json({
       success: false,
       error: 'Error al obtener configuración'
@@ -114,7 +114,7 @@ exports.update = async (req, res) => {
     
     if (actualizado) {
       const configActualizada = await Configuracion.findByClave(cleanClave);
-      logger.info(`✅ Configuración actualizada: ${cleanClave} = ${valor}`);
+      logger.info(`Configuración actualizada: ${cleanClave} = ${valor}`);
       res.json({
         success: true,
         message: 'Configuración actualizada correctamente',
@@ -127,7 +127,7 @@ exports.update = async (req, res) => {
       });
     }
   } catch (error) {
-    logger.error('❌ Error en update config:', error);
+    logger.error('Error en update config:', error);
     res.status(500).json({
       success: false,
       error: 'Error al actualizar configuración'
@@ -178,14 +178,14 @@ exports.create = async (req, res) => {
       descripcion: descripcion || null
     });
     
-    logger.info(`✅ Nueva configuración creada: ${cleanClave}`);
+    logger.info(`Nueva configuración creada: ${cleanClave}`);
     res.status(201).json({
       success: true,
       message: 'Configuración creada correctamente',
       data: nuevaConfig
     });
   } catch (error) {
-    logger.error('❌ Error en create config:', error);
+    logger.error('Error en create config:', error);
     res.status(500).json({
       success: false,
       error: 'Error al crear configuración'
@@ -213,7 +213,7 @@ exports.delete = async (req, res) => {
     const eliminado = await Configuracion.delete(cleanClave);
     
     if (eliminado) {
-      logger.info(`✅ Configuración eliminada: ${cleanClave}`);
+      logger.info(`Configuración eliminada: ${cleanClave}`);
       res.json({
         success: true,
         message: 'Configuración eliminada correctamente'
@@ -225,7 +225,7 @@ exports.delete = async (req, res) => {
       });
     }
   } catch (error) {
-    logger.error('❌ Error en delete config:', error);
+    logger.error('Error en delete config:', error);
     res.status(500).json({
       success: false,
       error: 'Error al eliminar configuración'

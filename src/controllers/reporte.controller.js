@@ -6,9 +6,9 @@ exports.getReporteVentas = async (req, res) => {
   try {
     const { fechaInicio, fechaFin } = req.query;
     
-    console.log('📝 === REPORTE DE VENTAS ===');
-    console.log('📝 Fecha Inicio:', fechaInicio);
-    console.log('📝 Fecha Fin:', fechaFin);
+    console.log('=== REPORTE DE VENTAS ===');
+    console.log('Fecha Inicio:', fechaInicio);
+    console.log('Fecha Fin:', fechaFin);
     
     if (!fechaInicio || !fechaFin) {
       return res.status(400).json({ 
@@ -18,7 +18,7 @@ exports.getReporteVentas = async (req, res) => {
 
     const ventas = await Venta.findByFecha(fechaInicio, fechaFin);
     
-    console.log(`📝 ${ventas.length} ventas encontradas`);
+    console.log(`${ventas.length} ventas encontradas`);
     
     if (!ventas || ventas.length === 0) {
       return res.json({
@@ -114,8 +114,8 @@ exports.getReporteDiarioCajero = async (req, res) => {
   try {
     const { fecha } = req.query;
     
-    console.log('📝 === REPORTE DIARIO CAJERO ===');
-    console.log('📝 Fecha:', fecha);
+    console.log('=== REPORTE DIARIO CAJERO ===');
+    console.log('Fecha:', fecha);
     
     if (!fecha) {
       return res.status(400).json({ error: 'Fecha es requerida' });
@@ -184,9 +184,9 @@ exports.getReportePorCliente = async (req, res) => {
   try {
     const { fechaInicio, fechaFin } = req.query;
     
-    console.log('📝 === REPORTE POR CLIENTE ===');
-    console.log('📝 Fecha Inicio:', fechaInicio);
-    console.log('📝 Fecha Fin:', fechaFin);
+    console.log('=== REPORTE POR CLIENTE ===');
+    console.log('Fecha Inicio:', fechaInicio);
+    console.log('Fecha Fin:', fechaFin);
     
     if (!fechaInicio || !fechaFin) {
       return res.status(400).json({ error: 'Fecha inicio y fin son requeridas' });
@@ -212,9 +212,9 @@ exports.getReporteMotorizada = async (req, res) => {
   try {
     const { fechaInicio, fechaFin } = req.query;
     
-    console.log('📝 === REPORTE MOTORIZADA ===');
-    console.log('📝 Fecha Inicio:', fechaInicio);
-    console.log('📝 Fecha Fin:', fechaFin);
+    console.log('=== REPORTE MOTORIZADA ===');
+    console.log('Fecha Inicio:', fechaInicio);
+    console.log('Fecha Fin:', fechaFin);
     
     if (!fechaInicio || !fechaFin) {
       return res.status(400).json({ error: 'Fecha inicio y fin son requeridas' });

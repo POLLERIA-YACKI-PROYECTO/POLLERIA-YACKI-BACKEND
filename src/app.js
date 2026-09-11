@@ -28,11 +28,11 @@ securityMiddleware(app);
 const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
 
 if (!isDevelopment) {
-  console.log('🔒 Rate limit activado');
+  console.log('Rate limit activado');
   app.use('/api', generalLimiter);
   app.use('/api/auth', authLimiter);
 } else {
-  console.log('🔓 Rate limit desactivado (modo desarrollo/test)');
+  console.log('Rate limit desactivado (modo desarrollo/test)');
 }
 
 // ============================================
@@ -103,7 +103,7 @@ app.get('/api/health', async (req, res) => {
       rateLimit: isDevelopment ? 'disabled' : 'enabled'
     });
   } catch (error) {
-    logger.error('❌ Health check falló:', error);
+    logger.error('Health check falló:', error);
     res.status(503).json({
       status: 'ERROR',
       timestamp: new Date().toISOString(),
@@ -127,7 +127,7 @@ app.use((req, res) => {
 // ERROR HANDLER
 // ============================================
 app.use((err, req, res, next) => {
-  logger.error('❌ Error no controlado:', err);
+  logger.error('Error no controlado:', err);
   
   const isProduction = process.env.NODE_ENV === 'production';
   res.status(500).json({

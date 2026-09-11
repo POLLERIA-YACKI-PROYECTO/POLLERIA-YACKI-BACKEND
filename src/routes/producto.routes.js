@@ -16,7 +16,7 @@ router.get('/categoria/:categoriaId', productoController.getByCategoria);
 router.get('/:id', productoController.getById);
 
 // ============================================
-// 🔒 RUTAS PROTEGIDAS - Solo Admin
+// RUTAS PROTEGIDAS - Solo Admin
 // ============================================
 router.post('/', 
   verifyToken, 
@@ -34,7 +34,7 @@ router.put('/:id',
   productoController.update
 );
 
-// ✅ Actualizar SOLO la imagen
+//  Actualizar SOLO la imagen
 router.patch('/:id/imagen',
   verifyToken,
   isAdmin,
@@ -42,8 +42,7 @@ router.patch('/:id/imagen',
   handleMulterError,
   productoController.updateImage
 );
-
-// ✅ Restaurar imagen por defecto
+// Restaurar imagen por defecto
 router.patch('/:id/restore-image',
   verifyToken,
   isAdmin,
