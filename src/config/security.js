@@ -7,19 +7,46 @@ const xss = require('xss');
 const cors = require('cors');
 const compression = require('compression');
 
-// Configuración de CORS segura
+// ============================================
+// CONFIGURACIÓN DE CORS
+// ============================================
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+  : [
+      'http://localhost:4200',
+      'http://localhost:3000',
+      'http://127.0.0.1:4200',
+      'http://127.0.0.1:3000'
+    ];
+
 const corsOptions = {
-  origin: process.env.ALLOWED_ORIGINS 
-    ? process.env.ALLOWED_ORIGINS.split(',') 
-    : ['http://localhost:4200', 'http://localhost:3000'],
+  origin: (origin, callback) => {
+    // Permitir requests sin origin (Postman, curl, apps móviles)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    console.warn(`⚠️ CORS bloqueado para origin: ${origin}`);
+    return callback(new Error(`CORS no permitido para: ${origin}`), false);
+  },
   credentials: true,
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-  exposedHeaders: ['X-Total-Count']
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'Accept',
+    'Origin'
+  ],
+  exposedHeaders: ['X-Total-Count', 'Authorization']
 };
 
-// Rate limiting por IP
+// ============================================
+// RATE LIMITING
+// ============================================
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -32,7 +59,6 @@ const limiter = rateLimit({
   skip: (req) => req.path === '/api/health'
 });
 
-// Rate limiting más estricto para endpoints sensibles
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
@@ -42,10 +68,13 @@ const authLimiter = rateLimit({
   }
 });
 
-// Sanitización de entrada
+// ============================================
+// SANITIZACIÓN DE ENTRADA (XSS)
+// ============================================
 const sanitizeInput = (req, res, next) => {
   const sanitizeObject = (obj) => {
     if (!obj) return obj;
+
     if (typeof obj === 'string') {
       return xss(obj, {
         whiteList: {},
@@ -53,109 +82,112 @@ const sanitizeInput = (req, res, next) => {
         stripIgnoreTagBody: ['script']
       }).trim();
     }
+
     if (Array.isArray(obj)) {
-      return obj.map(item => sanitizeObject(item));
+      return obj.map((item) => sanitizeObject(item));
     }
+
     if (typeof obj === 'object') {
       const cleaned = {};
-      for (let key in obj) {
-        if (obj.hasOwnProperty(key)) {
-          const cleanKey = key.replace(/[^\w\s-]/gi, '');
-          cleaned[cleanKey] = sanitizeObject(obj[key]);
+      for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+          // No sanitizar campos sensibles que contengan caracteres especiales
+          if (key === 'password' || key === 'token') {
+            cleaned[key] = obj[key];
+          } else {
+            const cleanKey = key.replace(/[^\w\s-]/gi, '');
+            cleaned[cleanKey] = sanitizeObject(obj[key]);
+          }
         }
       }
       return cleaned;
     }
+
     return obj;
   };
 
-  req.body = sanitizeObject(req.body);
-  req.query = sanitizeObject(req.query);
-  req.params = sanitizeObject(req.params);
+  // Solo sanitizar body y query (params puede contener IDs)
+  if (req.body) req.body = sanitizeObject(req.body);
+  if (req.query) req.query = sanitizeObject(req.query);
+
   next();
 };
 
-// Middleware de seguridad completo
+// ============================================
+// MIDDLEWARE DE SEGURIDAD COMPLETO
+// ============================================
 const securityMiddleware = (app) => {
-  // IMPORTANTE: express.json() DEBE ESTAR ANTES DE CUALQUIER RUTA
+  // 1. Body parsers (ANTES de todo)
   app.use(express.json({ limit: '25mb' }));
   app.use(express.urlencoded({ extended: true, limit: '25mb' }));
-  
-  // Helmet para headers de seguridad
+
+  // 2. Helmet (headers de seguridad)
   app.use(
     helmet({
-      crossOriginResourcePolicy: {
-        policy: "cross-origin",
-      },
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      crossOriginEmbedderPolicy: false,
 
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-
-          scriptSrc: ["'self'"],
-
-          styleSrc: ["'self'", "'unsafe-inline'"],
-
+          scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
+          styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
           imgSrc: [
             "'self'",
-            "data:",
-            "blob:",
-            "http://localhost:3000",
-            "https:",
+            'data:',
+            'blob:',
+            'http://localhost:3000',
+            'http://localhost:4200',
+            'https:'
           ],
-
           connectSrc: [
             "'self'",
-            process.env.API_URL || "http://localhost:3000",
+            'http://localhost:3000',
+            'http://localhost:4200',
+            process.env.API_URL || 'http://localhost:3000'
           ],
-
-          fontSrc: ["'self'"],
-
+          fontSrc: ["'self'", 'data:', 'https://cdn.jsdelivr.net'],
           objectSrc: ["'none'"],
-
           mediaSrc: ["'self'"],
-
-          frameSrc: ["'none'"],
-        },
+          frameSrc: ["'none'"]
+        }
       },
 
       xssFilter: true,
-
       noSniff: true,
-
-      referrerPolicy: {
-        policy: "same-origin",
-      },
-
+      referrerPolicy: { policy: 'same-origin' },
       hsts: {
         maxAge: 31536000,
         includeSubDomains: true,
-        preload: true,
-      },
-    }),
+        preload: true
+      }
+    })
   );
 
-  // Compresión gzip
+  // 3. Compresión gzip
   app.use(compression());
 
-  // CORS seguro
+  // 4. CORS
   app.use(cors(corsOptions));
+  app.options('*', cors(corsOptions)); // Preflight
 
-  // Rate limiting global
+  // 5. Rate limiting global
   app.use(limiter);
 
-  // Rate limiting para autenticación
+  // 6. Rate limiting específico para auth
   app.use('/api/auth', authLimiter);
 
-  // Sanitización de entrada
+  // 7. Sanitización de entrada
   app.use(sanitizeInput);
 
-  // Prevención de inyección NoSQL
+  // 8. Prevención de inyección NoSQL
   app.use(mongoSanitize());
 
-  // Logging de seguridad
+  // 9. Logging de seguridad
   app.use((req, res, next) => {
-    console.log(`${req.method} ${req.path} - IP: ${req.ip}`);
+    console.log(
+      `${new Date().toISOString()} | ${req.method} ${req.path} | IP: ${req.ip}`
+    );
     next();
   });
 };
