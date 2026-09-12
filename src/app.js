@@ -1,10 +1,4 @@
 // src/app.js
-// ============================================
-// CONFIGURACIÓN DE LA APLICACIÓN EXPRESS
-// ============================================
-// Este archivo exporta la app de Express SIN iniciar el servidor.
-// Esto permite que los tests con Supertest funcionen correctamente.
-
 const express = require('express');
 const path = require('path');
 const dotenv = require('dotenv');
@@ -17,15 +11,12 @@ dotenv.config();
 
 const app = express();
 
-// ============================================
-// MIDDLEWARES DE SEGURIDAD
-// ============================================
+// Middlewares de seguridad
 securityMiddleware(app);
 
-// ============================================
-// RATE LIMIT - SOLO APLICAR SI NO ES DESARROLLO/TEST
-// ============================================
-const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
+// Rate limit solo en producción
+const isDevelopment =
+  process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
 
 if (!isDevelopment) {
   console.log('Rate limit activado');
@@ -35,47 +26,45 @@ if (!isDevelopment) {
   console.log('Rate limit desactivado (modo desarrollo/test)');
 }
 
-// ============================================
-// ARCHIVOS ESTÁTICOS (IMÁGENES)
-// ============================================
+// Archivos estáticos
 app.use(
-  "/uploads",
-  express.static(path.join(__dirname, "../uploads"), {
+  '/uploads',
+  express.static(path.join(__dirname, '../uploads'), {
     setHeaders: (response) => {
-      response.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-      response.setHeader("Access-Control-Allow-Origin", "http://localhost:4200");
-    },
+      response.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      response.setHeader('Access-Control-Allow-Origin', 'http://localhost:4200');
+    }
   })
 );
 
-// ============================================
-// SWAGGER DOCUMENTATION
-// ============================================
+// Swagger (opcional)
 if (process.env.SWAGGER_ENABLED !== 'false') {
-  app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(specs, {
-    explorer: true,
-    customCss: `
-      .swagger-ui .topbar { display: none }
-      .swagger-ui .info .title { color: #e67e22 }
-    `,
-    swaggerOptions: {
-      persistAuthorization: true,
-      displayRequestDuration: true,
-      filter: true,
-      tryItOutEnabled: true,
-      docExpansion: 'list'
-    }
-  }));
-  
+  app.use(
+    '/api/docs',
+    swaggerUi.serve,
+    swaggerUi.setup(specs, {
+      explorer: true,
+      customCss: `
+        .swagger-ui .topbar { display: none }
+        .swagger-ui .info .title { color: #e67e22 }
+      `,
+      swaggerOptions: {
+        persistAuthorization: true,
+        displayRequestDuration: true,
+        filter: true,
+        tryItOutEnabled: true,
+        docExpansion: 'list'
+      }
+    })
+  );
+
   app.get('/api/docs.json', (req, res) => {
     res.setHeader('Content-Type', 'application/json');
     res.send(specs);
   });
 }
 
-// ============================================
-// RUTAS
-// ============================================
+// Rutas
 app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/productos', require('./routes/producto.routes'));
 app.use('/api/categorias', require('./routes/categoria.routes'));
@@ -86,10 +75,9 @@ app.use('/api/pedidos', require('./routes/pedido.routes'));
 app.use('/api/reportes', require('./routes/reporte.routes'));
 app.use('/api/mesas', require('./routes/mesa.routes'));
 app.use('/api/configuracion', require('./routes/configuracion.routes'));
+app.use('/api/historial', require('./routes/historial.routes'));
 
-// ============================================
-// HEALTH CHECK
-// ============================================
+// Health check
 app.get('/api/health', async (req, res) => {
   try {
     const db = require('./config/database');
@@ -113,9 +101,7 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-// ============================================
-// RUTA 404
-// ============================================
+// 404
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -123,12 +109,9 @@ app.use((req, res) => {
   });
 });
 
-// ============================================
-// ERROR HANDLER
-// ============================================
+// Error handler
 app.use((err, req, res, next) => {
   logger.error('Error no controlado:', err);
-  
   const isProduction = process.env.NODE_ENV === 'production';
   res.status(500).json({
     success: false,
@@ -137,7 +120,4 @@ app.use((err, req, res, next) => {
   });
 });
 
-// ============================================
-// EXPORTAR APP (para tests con Supertest)
-// ============================================
 module.exports = app;

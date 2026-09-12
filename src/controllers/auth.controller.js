@@ -4,9 +4,25 @@ const Cliente = require('../models/Cliente');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { logger } = require('../utils/logger');
+const HistorialActividad = require('../models/HistorialActividad');
 require('dotenv').config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'polleria-yacky-secret-key-2026';
+
+// Helper para IP y user-agent
+const getMeta = (req) => ({
+  ip: req.ip || req.headers['x-forwarded-for'] || req.connection?.remoteAddress || null,
+  user_agent: req.headers['user-agent'] || null
+});
+
+// Helper para registrar actividad sin romper el flujo
+const logActividad = async (data) => {
+  try {
+    await HistorialActividad.registrar(data);
+  } catch (err) {
+    logger.error('Error al registrar historial:', err);
+  }
+};
 
 // ============================================
 // LOGIN ADMIN / CAJERO (por DNI)
@@ -16,25 +32,44 @@ exports.loginAdmin = async (req, res) => {
     const { dni } = req.body;
 
     if (!dni || dni.length !== 8) {
+      await logActividad({
+        tipo_usuario: 'anonimo',
+        accion: 'login_fallido',
+        descripcion: `Intento con DNI inválido: ${dni || 'vacío'}`,
+        ...getMeta(req)
+      });
       return res.status(400).json({
         success: false,
-        error: 'DNI inválido'
+        message: 'DNI inválido o incorrecto'
       });
     }
 
     const usuario = await Usuario.findByDni(dni);
 
     if (!usuario || !usuario.activo) {
-      return res.status(404).json({
+      await logActividad({
+        tipo_usuario: 'anonimo',
+        accion: 'login_fallido',
+        descripcion: `Login fallido con DNI: ${dni}`,
+        ...getMeta(req)
+      });
+      return res.status(401).json({
         success: false,
-        error: 'Usuario no encontrado'
+        message: 'DNI inválido o incorrecto'
       });
     }
 
     if (usuario.rol !== 'admin' && usuario.rol !== 'cajero') {
+      await logActividad({
+        usuario_id: usuario.id,
+        tipo_usuario: 'usuario',
+        accion: 'login_fallido',
+        descripcion: `Rol no autorizado (${usuario.rol}) intentó login admin`,
+        ...getMeta(req)
+      });
       return res.status(403).json({
         success: false,
-        error: 'Acceso denegado. Se requiere rol de administrador o cajero'
+        message: 'Acceso denegado. Se requiere rol de administrador o cajero'
       });
     }
 
@@ -43,6 +78,14 @@ exports.loginAdmin = async (req, res) => {
       JWT_SECRET,
       { expiresIn: '7d' }
     );
+
+    await logActividad({
+      usuario_id: usuario.id,
+      tipo_usuario: 'usuario',
+      accion: 'login_exitoso',
+      descripcion: `Login admin/cajero: ${usuario.nombre} (${usuario.rol})`,
+      ...getMeta(req)
+    });
 
     delete usuario.password;
 
@@ -55,7 +98,7 @@ exports.loginAdmin = async (req, res) => {
     logger.error('Error en loginAdmin:', error);
     res.status(500).json({
       success: false,
-      error: 'Error al iniciar sesión'
+      message: 'Error al iniciar sesión'
     });
   }
 };
@@ -68,25 +111,44 @@ exports.loginMesero = async (req, res) => {
     const { dni } = req.body;
 
     if (!dni || dni.length !== 8) {
+      await logActividad({
+        tipo_usuario: 'anonimo',
+        accion: 'login_fallido',
+        descripcion: `Intento mesero con DNI inválido: ${dni || 'vacío'}`,
+        ...getMeta(req)
+      });
       return res.status(400).json({
         success: false,
-        error: 'DNI inválido'
+        message: 'DNI inválido o incorrecto'
       });
     }
 
     const usuario = await Usuario.findByDni(dni);
 
     if (!usuario || !usuario.activo) {
-      return res.status(404).json({
+      await logActividad({
+        tipo_usuario: 'anonimo',
+        accion: 'login_fallido',
+        descripcion: `Login mesero fallido con DNI: ${dni}`,
+        ...getMeta(req)
+      });
+      return res.status(401).json({
         success: false,
-        error: 'Usuario no encontrado'
+        message: 'DNI inválido o incorrecto'
       });
     }
 
     if (usuario.rol !== 'mesero') {
+      await logActividad({
+        usuario_id: usuario.id,
+        tipo_usuario: 'usuario',
+        accion: 'login_fallido',
+        descripcion: `Rol ${usuario.rol} intentó login mesero`,
+        ...getMeta(req)
+      });
       return res.status(403).json({
         success: false,
-        error: 'Acceso denegado. Se requiere rol de mesero'
+        message: 'Acceso denegado. Se requiere rol de mesero'
       });
     }
 
@@ -95,6 +157,14 @@ exports.loginMesero = async (req, res) => {
       JWT_SECRET,
       { expiresIn: '7d' }
     );
+
+    await logActividad({
+      usuario_id: usuario.id,
+      tipo_usuario: 'usuario',
+      accion: 'login_exitoso',
+      descripcion: `Login mesero: ${usuario.nombre}`,
+      ...getMeta(req)
+    });
 
     delete usuario.password;
 
@@ -107,7 +177,7 @@ exports.loginMesero = async (req, res) => {
     logger.error('Error en loginMesero:', error);
     res.status(500).json({
       success: false,
-      error: 'Error al iniciar sesión'
+      message: 'Error al iniciar sesión'
     });
   }
 };
@@ -120,18 +190,30 @@ exports.login = async (req, res) => {
     const { dni } = req.body;
 
     if (!dni || dni.length !== 8) {
+      await logActividad({
+        tipo_usuario: 'anonimo',
+        accion: 'login_fallido',
+        descripcion: `Intento con DNI inválido: ${dni || 'vacío'}`,
+        ...getMeta(req)
+      });
       return res.status(400).json({
         success: false,
-        error: 'DNI inválido'
+        message: 'DNI inválido o incorrecto'
       });
     }
 
     const usuario = await Usuario.findByDni(dni);
 
     if (!usuario || !usuario.activo) {
-      return res.status(404).json({
+      await logActividad({
+        tipo_usuario: 'anonimo',
+        accion: 'login_fallido',
+        descripcion: `Login fallido con DNI: ${dni}`,
+        ...getMeta(req)
+      });
+      return res.status(401).json({
         success: false,
-        error: 'Usuario no encontrado'
+        message: 'DNI inválido o incorrecto'
       });
     }
 
@@ -140,6 +222,14 @@ exports.login = async (req, res) => {
       JWT_SECRET,
       { expiresIn: '7d' }
     );
+
+    await logActividad({
+      usuario_id: usuario.id,
+      tipo_usuario: 'usuario',
+      accion: 'login_exitoso',
+      descripcion: `Login: ${usuario.nombre} (${usuario.rol})`,
+      ...getMeta(req)
+    });
 
     delete usuario.password;
 
@@ -152,7 +242,7 @@ exports.login = async (req, res) => {
     logger.error('Error en login:', error);
     res.status(500).json({
       success: false,
-      error: 'Error al iniciar sesión'
+      message: 'Error al iniciar sesión'
     });
   }
 };
@@ -174,6 +264,12 @@ exports.loginCliente = async (req, res) => {
     const cliente = await Cliente.findByEmail(email);
 
     if (!cliente) {
+      await logActividad({
+        tipo_usuario: 'anonimo',
+        accion: 'login_fallido',
+        descripcion: `Login cliente fallido (email no existe): ${email}`,
+        ...getMeta(req)
+      });
       return res.status(401).json({
         success: false,
         message: 'Credenciales incorrectas'
@@ -181,6 +277,13 @@ exports.loginCliente = async (req, res) => {
     }
 
     if (!cliente.activo) {
+      await logActividad({
+        cliente_id: cliente.id,
+        tipo_usuario: 'cliente',
+        accion: 'login_fallido',
+        descripcion: `Cuenta desactivada: ${email}`,
+        ...getMeta(req)
+      });
       return res.status(403).json({
         success: false,
         message: 'Cuenta desactivada. Contacta con soporte.'
@@ -190,6 +293,13 @@ exports.loginCliente = async (req, res) => {
     const passwordValida = await bcrypt.compare(password, cliente.password);
 
     if (!passwordValida) {
+      await logActividad({
+        cliente_id: cliente.id,
+        tipo_usuario: 'cliente',
+        accion: 'login_fallido',
+        descripcion: `Contraseña incorrecta para ${email}`,
+        ...getMeta(req)
+      });
       return res.status(401).json({
         success: false,
         message: 'Credenciales incorrectas'
@@ -203,6 +313,14 @@ exports.loginCliente = async (req, res) => {
     );
 
     await Cliente.updateUltimoAcceso(cliente.id);
+
+    await logActividad({
+      cliente_id: cliente.id,
+      tipo_usuario: 'cliente',
+      accion: 'login_exitoso',
+      descripcion: `Login cliente: ${email}`,
+      ...getMeta(req)
+    });
 
     const { password: _, ...clienteData } = cliente;
 
@@ -262,6 +380,15 @@ exports.registerCliente = async (req, res) => {
       JWT_SECRET,
       { expiresIn: '7d' }
     );
+
+    await logActividad({
+      cliente_id: nuevoCliente.id,
+      tipo_usuario: 'cliente',
+      accion: 'registro',
+      descripcion: `Nuevo cliente registrado: ${nombre} (${email})`,
+      datos: { telefono, direccion },
+      ...getMeta(req)
+    });
 
     res.status(201).json({
       success: true,
