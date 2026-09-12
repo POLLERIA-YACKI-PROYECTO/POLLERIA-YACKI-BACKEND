@@ -34,3 +34,34 @@
       tipo, tipo_entrega, estado, observaciones, metodo_pago, pagado) 
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 [ERROR] 2026-09-07T20:44:57.910Z - Params: [null,3,"[{\"id\":2,\"nombre\":\"1-2 pollo\",\"precio\":23,\"cantidad\":1,\"subtotal\":23}]",23,4.14,27.14,"adrian",null,"local","local","pendiente",null,null,0]
+[ERROR] 2026-09-09T21:02:54.387Z - Error en findAll usuarios:
+{
+  "code": "ER_ACCESS_DENIED_ERROR",
+  "errno": 1045,
+  "sqlState": "28000",
+  "sqlMessage": "Access denied for user 'root'@'localhost' (using password: YES)"
+}
+[ERROR] 2026-09-12T03:38:57.541Z - Error al registrar historial:
+{
+  "code": "ER_NO_SUCH_TABLE",
+  "errno": 1146,
+  "sqlState": "42S02",
+  "sqlMessage": "Table 'polleria_yacki.historial_actividad' doesn't exist",
+  "sql": "INSERT INTO historial_actividad\n        (usuario_id, cliente_id, tipo_usuario, accion, descripcion, ip, user_agent, datos)\n       VALUES (1, NULL, 'usuario', 'login_fallido', 'Rol admin intentó login mesero', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36 Edg/152.0.0.0', NULL)"
+}
+[ERROR] 2026-09-12T03:39:12.889Z - Error al registrar historial:
+{
+  "code": "ER_NO_SUCH_TABLE",
+  "errno": 1146,
+  "sqlState": "42S02",
+  "sqlMessage": "Table 'polleria_yacki.historial_actividad' doesn't exist",
+  "sql": "INSERT INTO historial_actividad\n        (usuario_id, cliente_id, tipo_usuario, accion, descripcion, ip, user_agent, datos)\n       VALUES (1, NULL, 'usuario', 'login_fallido', 'Rol admin intentó login mesero', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36 Edg/152.0.0.0', NULL)"
+}
+[ERROR] 2026-09-12T03:39:13.525Z - Error al registrar historial:
+{
+  "code": "ER_NO_SUCH_TABLE",
+  "errno": 1146,
+  "sqlState": "42S02",
+  "sqlMessage": "Table 'polleria_yacki.historial_actividad' doesn't exist",
+  "sql": "INSERT INTO historial_actividad\n        (usuario_id, cliente_id, tipo_usuario, accion, descripcion, ip, user_agent, datos)\n       VALUES (1, NULL, 'usuario', 'login_fallido', 'Rol admin intentó login mesero', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36 Edg/152.0.0.0', NULL)"
+}
