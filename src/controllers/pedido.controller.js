@@ -18,6 +18,8 @@ exports.getAll = async (req, res) => {
     
     if (userRol === 'admin' || userRol === 'cajero') {
       pedidos = await Pedido.findAll();
+    } else if (userRol === 'cliente') {
+      pedidos = await Pedido.findByCliente(usuarioId);
     } else {
       pedidos = await Pedido.findByUsuario(usuarioId);
     }

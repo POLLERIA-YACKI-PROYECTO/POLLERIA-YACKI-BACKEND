@@ -225,7 +225,11 @@ exports.loginCliente = async (req, res) => {
 // ============================================
 exports.registerCliente = async (req, res) => {
   try {
-    const { nombre, email, telefono, direccion, password } = req.body;
+    const nombre = typeof req.body.nombre === 'string' ? req.body.nombre.trim() : '';
+    const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    const telefono = typeof req.body.telefono === 'string' ? req.body.telefono.trim() : null;
+    const direccion = typeof req.body.direccion === 'string' ? req.body.direccion.trim() : null;
+    const password = typeof req.body.password === 'string' ? req.body.password : '';
 
     if (!nombre || !email || !password) {
       return res.status(400).json({
@@ -270,6 +274,12 @@ exports.registerCliente = async (req, res) => {
     });
   } catch (error) {
     logger.error('Error en registerCliente:', error);
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({
+        success: false,
+        message: 'El correo ya está registrado'
+      });
+    }
     res.status(500).json({
       success: false,
       message: 'Error al registrar cliente'

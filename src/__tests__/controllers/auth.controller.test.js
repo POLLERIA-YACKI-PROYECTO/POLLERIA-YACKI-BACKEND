@@ -4,9 +4,11 @@ const jwt = require('jsonwebtoken');
 
 // ✅ IMPORTANTE: Mockear el modelo ANTES de importar el controlador
 jest.mock('../../models/Usuario');
+jest.mock('../../models/Cliente');
 
 const app = require('../../app');
 const Usuario = require('../../models/Usuario');
+const Cliente = require('../../models/Cliente');
 
 describe('Auth Controller', () => {
   // Datos de prueba
@@ -126,6 +128,53 @@ describe('Auth Controller', () => {
 
       expect(response.status).toBe(403);
       expect(response.body.error).toContain('Se requiere rol de mesero');
+    });
+  });
+
+  describe('POST /api/auth/cliente/register', () => {
+    it('debe registrar un cliente y devolver token', async () => {
+      Cliente.findByEmail.mockResolvedValue(null);
+      Cliente.create.mockResolvedValue({
+        id: 10,
+        nombre: 'Cliente Test',
+        email: 'cliente@test.com',
+        telefono: '987654321',
+        direccion: 'Av. Test 123',
+        activo: 1
+      });
+
+      const response = await request(app)
+        .post('/api/auth/cliente/register')
+        .send({
+          nombre: ' Cliente Test ',
+          email: ' CLIENTE@TEST.COM ',
+          telefono: '987654321',
+          direccion: 'Av. Test 123',
+          password: 'secreto123'
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body.success).toBe(true);
+      expect(response.body.token).toBeDefined();
+      expect(Cliente.create).toHaveBeenCalledWith({
+        nombre: 'Cliente Test',
+        email: 'cliente@test.com',
+        telefono: '987654321',
+        direccion: 'Av. Test 123',
+        password: 'secreto123'
+      });
+    });
+
+    it('debe devolver 409 si el correo ya está registrado', async () => {
+      Cliente.findByEmail.mockResolvedValue({ id: 10 });
+
+      const response = await request(app)
+        .post('/api/auth/cliente/register')
+        .send({ nombre: 'Cliente Test', email: 'cliente@test.com', password: 'secreto123' });
+
+      expect(response.status).toBe(409);
+      expect(response.body.message).toBe('El correo ya está registrado');
+      expect(Cliente.create).not.toHaveBeenCalled();
     });
   });
 });

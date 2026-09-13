@@ -14,7 +14,7 @@ class Pedido {
         c.apellido as cliente_apellido
       FROM pedidos p
       LEFT JOIN usuarios u ON p.usuario_id = u.id
-      LEFT JOIN clientes c ON p.cliente_id = c.id
+      LEFT JOIN usuarios c ON p.cliente_id = c.id AND c.rol = 'cliente'
       WHERE p.deleted_at IS NULL
       ORDER BY p.id DESC
     `);
@@ -41,7 +41,7 @@ class Pedido {
         c.apellido as cliente_apellido
       FROM pedidos p
       LEFT JOIN usuarios u ON p.usuario_id = u.id
-      LEFT JOIN clientes c ON p.cliente_id = c.id
+      LEFT JOIN usuarios c ON p.cliente_id = c.id AND c.rol = 'cliente'
       WHERE p.id = ? AND p.deleted_at IS NULL
     `, [id]);
     
@@ -69,7 +69,7 @@ class Pedido {
         c.apellido as cliente_apellido
       FROM pedidos p
       LEFT JOIN usuarios u ON p.usuario_id = u.id
-      LEFT JOIN clientes c ON p.cliente_id = c.id
+      LEFT JOIN usuarios c ON p.cliente_id = c.id AND c.rol = 'cliente'
       WHERE p.usuario_id = ? 
         AND p.deleted_at IS NULL
       ORDER BY p.id DESC
@@ -85,6 +85,16 @@ class Pedido {
     });
   }
 
+  static async findByCliente(clienteId) {
+    const [rows] = await db.query(`
+      SELECT * FROM pedidos
+      WHERE cliente_id = ? AND deleted_at IS NULL
+      ORDER BY created_at DESC
+    `, [clienteId]);
+
+    return rows;
+  }
+
   // FIND PENDIENTES - CORREGIDO
   static async findPendientes() {
     const [rows] = await db.query(`
@@ -97,7 +107,7 @@ class Pedido {
         c.apellido as cliente_apellido
       FROM pedidos p
       LEFT JOIN usuarios u ON p.usuario_id = u.id
-      LEFT JOIN clientes c ON p.cliente_id = c.id
+      LEFT JOIN usuarios c ON p.cliente_id = c.id AND c.rol = 'cliente'
       WHERE p.estado IN ('pendiente', 'preparando', 'listo') 
         AND (p.pagado = 0 OR p.pagado IS NULL)
         AND p.deleted_at IS NULL
@@ -126,7 +136,7 @@ class Pedido {
         c.apellido as cliente_apellido
       FROM pedidos p
       LEFT JOIN usuarios u ON p.usuario_id = u.id
-      LEFT JOIN clientes c ON p.cliente_id = c.id
+      LEFT JOIN usuarios c ON p.cliente_id = c.id AND c.rol = 'cliente'
       WHERE p.estado = 'entregado' 
         AND p.pagado = 1
         AND p.deleted_at IS NULL
@@ -155,7 +165,7 @@ class Pedido {
         c.apellido as cliente_apellido
       FROM pedidos p
       LEFT JOIN usuarios u ON p.usuario_id = u.id
-      LEFT JOIN clientes c ON p.cliente_id = c.id
+      LEFT JOIN usuarios c ON p.cliente_id = c.id AND c.rol = 'cliente'
       WHERE p.estado = 'entregado'
         AND p.usuario_id = ?
         AND p.deleted_at IS NULL
@@ -184,7 +194,7 @@ class Pedido {
         c.apellido as cliente_apellido
       FROM pedidos p
       LEFT JOIN usuarios u ON p.usuario_id = u.id
-      LEFT JOIN clientes c ON p.cliente_id = c.id
+      LEFT JOIN usuarios c ON p.cliente_id = c.id AND c.rol = 'cliente'
       WHERE p.tipo_entrega = ? 
         AND p.pagado = 1
         AND p.deleted_at IS NULL
@@ -252,7 +262,7 @@ class Pedido {
       `INSERT INTO pedidos 
        (mesa_id, usuario_id, items, subtotal, igv, total, cliente_nombre, cliente_id, 
         tipo, tipo_entrega, estado, observaciones, metodo_pago, pagado) 
-       VALUES (?, ?, CAST(? AS JSON), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         mesa_id || null, 
         usuario_id, 
@@ -314,7 +324,7 @@ class Pedido {
     const [result] = await db.query(
       `INSERT INTO ventas 
        (pedido_id, usuario_id, mesa_id, cliente_id, cliente_nombre, items, subtotal, igv, descuento, total, metodo_pago, numero_operacion, tipo_entrega, estado, observaciones) 
-       VALUES (?, ?, ?, ?, ?, CAST(? AS JSON), ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         pedido_id || null,
         usuario_id,

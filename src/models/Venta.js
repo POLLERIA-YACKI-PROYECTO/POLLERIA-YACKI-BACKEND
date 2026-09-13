@@ -54,7 +54,7 @@ class Venta {
              c.nombre as cliente_nombre_real
       FROM ventas v
       LEFT JOIN usuarios u ON v.usuario_id = u.id
-      LEFT JOIN clientes c ON v.cliente_id = c.id
+             LEFT JOIN usuarios c ON v.cliente_id = c.id AND c.rol = 'cliente'
       WHERE v.deleted_at IS NULL
       ORDER BY v.id DESC
     `);
@@ -69,7 +69,7 @@ class Venta {
              c.nombre as cliente_nombre_real
       FROM ventas v
       LEFT JOIN usuarios u ON v.usuario_id = u.id
-      LEFT JOIN clientes c ON v.cliente_id = c.id
+             LEFT JOIN usuarios c ON v.cliente_id = c.id AND c.rol = 'cliente'
       WHERE v.id = ? AND v.deleted_at IS NULL
     `, [id]);
     return rows[0];
@@ -82,7 +82,7 @@ class Venta {
              c.nombre as cliente_nombre_real
       FROM ventas v
       LEFT JOIN usuarios u ON v.usuario_id = u.id
-      LEFT JOIN clientes c ON v.cliente_id = c.id
+             LEFT JOIN usuarios c ON v.cliente_id = c.id AND c.rol = 'cliente'
       WHERE v.usuario_id = ? AND v.deleted_at IS NULL
       ORDER BY v.id DESC
     `, [usuarioId]);
@@ -96,7 +96,7 @@ class Venta {
              c.nombre as cliente_nombre_real
       FROM ventas v
       LEFT JOIN usuarios u ON v.usuario_id = u.id
-      LEFT JOIN clientes c ON v.cliente_id = c.id
+             LEFT JOIN usuarios c ON v.cliente_id = c.id AND c.rol = 'cliente'
       WHERE v.tipo_entrega = ? AND v.deleted_at IS NULL
       ORDER BY v.id DESC
     `, [tipo_entrega]);
@@ -112,7 +112,7 @@ class Venta {
              c.nombre as cliente_nombre_real
       FROM ventas v
       LEFT JOIN usuarios u ON v.usuario_id = u.id
-      LEFT JOIN clientes c ON v.cliente_id = c.id
+             LEFT JOIN usuarios c ON v.cliente_id = c.id AND c.rol = 'cliente'
       WHERE DATE(v.fecha_venta) BETWEEN ? AND ?
         AND v.estado = 'completada'
         AND v.deleted_at IS NULL
@@ -154,7 +154,7 @@ class Venta {
         MAX(v.total) as compra_maxima,
         MIN(v.total) as compra_minima
       FROM ventas v
-      LEFT JOIN clientes c ON v.cliente_id = c.id
+      LEFT JOIN usuarios c ON v.cliente_id = c.id AND c.rol = 'cliente'
       WHERE DATE(v.fecha_venta) BETWEEN ? AND ?
         AND v.estado = 'completada'
         AND v.deleted_at IS NULL
