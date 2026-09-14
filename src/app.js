@@ -76,7 +76,8 @@ app.use('/api/reportes', require('./routes/reporte.routes'));
 app.use('/api/mesas', require('./routes/mesa.routes'));
 app.use('/api/configuracion', require('./routes/configuracion.routes'));
 app.use('/api/historial', require('./routes/historial.routes'));
-
+// En src/app.js, agregar esta línea junto a las otras rutas:
+app.use('/api/pedidos-cliente', require('./routes/pedidoCliente.routes'));
 // Health check
 app.get('/api/health', async (req, res) => {
   try {

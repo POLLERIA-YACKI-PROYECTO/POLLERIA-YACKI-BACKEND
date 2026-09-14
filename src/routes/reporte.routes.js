@@ -7,17 +7,35 @@ const { verifyToken, isAdmin } = require('../middleware/auth');
 // Todas las rutas requieren autenticación y rol de admin/cajero
 router.use(verifyToken, isAdmin);
 
-// Reporte general de ventas por período
+// ============================================
+// REPORTE GENERAL DE VENTAS
+// ============================================
 router.get('/ventas', reporteController.getReporteVentas);
 
-// Reporte diario de cajero
+// ============================================
+// REPORTE DIARIO DE CAJERO
+// ============================================
 router.get('/diario-cajero', reporteController.getReporteDiarioCajero);
 
-//  Reporte por cliente (con alias para compatibilidad)
-router.get('/cliente', reporteController.getReportePorCliente);
-router.get('/por-cliente', reporteController.getReportePorCliente); // Alias
+// ============================================
+// REPORTE POR MESERO
+// ============================================
+router.get('/ventas-mesero', reporteController.getReporteVentasPorMesero);
 
-// Reporte motorizada
+// ============================================
+// REPORTE POR CLIENTE
+// ============================================
+router.get('/cliente', reporteController.getReportePorCliente);
+router.get('/por-cliente', reporteController.getReportePorCliente);
+
+// ============================================
+// REPORTE MOTORIZADA
+// ============================================
 router.get('/motorizada', reporteController.getReporteMotorizada);
+
+// ============================================
+// ✅ NUEVO: REPORTE SEMANAL
+// ============================================
+router.get('/semanal', reporteController.getReporteSemanal);
 
 module.exports = router;

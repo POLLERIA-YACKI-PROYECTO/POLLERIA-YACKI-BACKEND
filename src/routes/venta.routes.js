@@ -6,6 +6,10 @@ const { verifyToken } = require('../middleware/auth');
 
 // Todas las rutas requieren autenticación
 router.get('/', verifyToken, ventaController.getAll);
+
+// ✅ NUEVO: Pedidos web pendientes
+router.get('/pedidos-web/pendientes', verifyToken, ventaController.getPedidosWebPendientes);
+
 router.get('/usuario/:usuarioId', verifyToken, ventaController.getByUsuario);
 router.get('/tipo/:tipo', verifyToken, ventaController.getByTipoEntrega);
 router.get('/resumen/usuario/:usuarioId', verifyToken, ventaController.getResumenPorUsuario);

@@ -103,7 +103,6 @@ class Venta {
     return rows;
   }
 
-  // Método findByFecha - CORREGIDO
   static async findByFecha(fechaInicio, fechaFin) {
     const [rows] = await db.query(`
       SELECT v.*, 
@@ -121,7 +120,6 @@ class Venta {
     return rows;
   }
 
-  // Método getResumenDiario
   static async getResumenDiario(fecha) {
     const [rows] = await db.query(`
       SELECT 
@@ -141,7 +139,6 @@ class Venta {
     return rows[0] || { total_ventas: 0, total_recaudado: 0, promedio: 0 };
   }
 
-  // Método getVentasPorCliente
   static async getVentasPorCliente(fechaInicio, fechaFin) {
     const [rows] = await db.query(`
       SELECT 
@@ -161,6 +158,88 @@ class Venta {
       GROUP BY v.cliente_id, v.cliente_nombre, c.nombre
       ORDER BY total_gastado DESC
     `, [fechaInicio, fechaFin]);
+    return rows;
+  }
+
+  // ============================================
+  // ✅ NUEVO: Pedidos de la carta web (pedidos_cliente pagados)
+  // Se transforman al formato de ventas para mostrarlos juntos
+  // ============================================
+  static async findPedidosClientePagados() {
+    const [rows] = await db.query(`
+      SELECT
+        pc.id,
+        NULL AS pedido_id,
+        NULL AS usuario_id,
+        NULL AS mesa_id,
+        pc.cliente_id,
+        pc.cliente_nombre,
+        c.nombre AS cliente_nombre_real,
+        c.apellido AS cliente_apellido,
+        pc.items,
+        pc.subtotal,
+        pc.igv,
+        0 AS descuento,
+        pc.total,
+        pc.metodo_pago,
+        pc.numero_operacion,
+        pc.tipo_entrega,
+        'completada' AS estado,
+        pc.observaciones,
+        pc.created_at AS fecha_venta,
+        pc.created_at,
+        pc.updated_at,
+        pc.deleted_at,
+        'pedido_web' AS origen,
+        'Cliente Web' AS usuario_nombre,
+        NULL AS usuario_rol,
+        pc.cliente_telefono,
+        pc.cliente_direccion
+      FROM pedidos_cliente pc
+      LEFT JOIN clientes c ON pc.cliente_id = c.id
+      WHERE pc.deleted_at IS NULL
+        AND pc.pagado = TRUE
+        AND pc.estado NOT IN ('cancelado')
+      ORDER BY pc.created_at DESC
+    `);
+    return rows;
+  }
+
+  // ============================================
+  // ✅ NUEVO: Pedidos web pendientes de pago
+  // ============================================
+  static async findPedidosClientePendientes() {
+    const [rows] = await db.query(`
+      SELECT
+        pc.id,
+        NULL AS pedido_id,
+        NULL AS usuario_id,
+        NULL AS mesa_id,
+        pc.cliente_id,
+        pc.cliente_nombre,
+        c.nombre AS cliente_nombre_real,
+        pc.items,
+        pc.subtotal,
+        pc.igv,
+        0 AS descuento,
+        pc.total,
+        pc.metodo_pago,
+        pc.tipo_entrega,
+        'pendiente' AS estado,
+        pc.observaciones,
+        pc.created_at,
+        pc.cliente_telefono,
+        pc.cliente_direccion,
+        'pedido_web' AS origen,
+        'Cliente Web' AS usuario_nombre,
+        FALSE AS pagado
+      FROM pedidos_cliente pc
+      LEFT JOIN clientes c ON pc.cliente_id = c.id
+      WHERE pc.deleted_at IS NULL
+        AND (pc.pagado = FALSE OR pc.pagado IS NULL)
+        AND pc.estado NOT IN ('cancelado', 'entregado')
+      ORDER BY pc.created_at DESC
+    `);
     return rows;
   }
 }

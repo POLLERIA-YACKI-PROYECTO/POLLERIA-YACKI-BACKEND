@@ -1,6 +1,9 @@
 // src/controllers/historial.controller.js
 const HistorialActividad = require('../models/HistorialActividad');
 
+// ============================================
+// LISTAR ACTIVIDAD
+// ============================================
 exports.getAll = async (req, res) => {
   try {
     const { limit = 100, offset = 0, accion, tipo_usuario } = req.query;
@@ -17,6 +20,9 @@ exports.getAll = async (req, res) => {
   }
 };
 
+// ============================================
+// RESUMEN DE CLIENTES
+// ============================================
 exports.resumenClientes = async (req, res) => {
   try {
     res.json(await HistorialActividad.resumenClientes());
@@ -26,6 +32,9 @@ exports.resumenClientes = async (req, res) => {
   }
 };
 
+// ============================================
+// CLIENTES SIN COMPRAS
+// ============================================
 exports.clientesSinCompras = async (req, res) => {
   try {
     res.json(await HistorialActividad.clientesSinCompras());
@@ -35,6 +44,9 @@ exports.clientesSinCompras = async (req, res) => {
   }
 };
 
+// ============================================
+// CLIENTES CON COMPRAS
+// ============================================
 exports.clientesConCompras = async (req, res) => {
   try {
     res.json(await HistorialActividad.clientesConCompras());
@@ -44,6 +56,9 @@ exports.clientesConCompras = async (req, res) => {
   }
 };
 
+// ============================================
+// USUARIOS ACTIVOS
+// ============================================
 exports.usuariosActivos = async (req, res) => {
   try {
     res.json(await HistorialActividad.usuariosActivos());
@@ -53,6 +68,9 @@ exports.usuariosActivos = async (req, res) => {
   }
 };
 
+// ============================================
+// ESTADÍSTICAS
+// ============================================
 exports.estadisticas = async (req, res) => {
   try {
     res.json(await HistorialActividad.estadisticas());
@@ -62,7 +80,9 @@ exports.estadisticas = async (req, res) => {
   }
 };
 
-// NUEVO: todo en una sola petición
+// ============================================
+// ✅ RESUMEN COMPLETO (una sola petición)
+// ============================================
 exports.resumenCompleto = async (req, res) => {
   try {
     const [estadisticas, clientes, clientesConCompras, clientesSinCompras] = await Promise.all([
@@ -81,5 +101,24 @@ exports.resumenCompleto = async (req, res) => {
   } catch (error) {
     console.error('Error en resumenCompleto:', error);
     res.status(500).json({ error: 'Error al obtener resumen completo' });
+  }
+};
+
+// ============================================
+// ✅ NUEVO: DETALLE DE COMPRAS DE UN CLIENTE
+// ============================================
+exports.getComprasByCliente = async (req, res) => {
+  try {
+    const { clienteId } = req.params;
+
+    if (!clienteId || isNaN(Number(clienteId))) {
+      return res.status(400).json({ error: 'ID de cliente inválido' });
+    }
+
+    const compras = await HistorialActividad.getComprasByCliente(Number(clienteId));
+    res.json(compras);
+  } catch (error) {
+    console.error('Error en getComprasByCliente:', error);
+    res.status(500).json({ error: 'Error al obtener compras del cliente' });
   }
 };

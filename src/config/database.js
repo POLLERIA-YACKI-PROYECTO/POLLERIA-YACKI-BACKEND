@@ -1,27 +1,30 @@
 // src/config/database.js
 const mysql = require('mysql2/promise');
+require('dotenv').config();
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || 'adrian.200503',
-  database: process.env.DB_NAME || 'polleria_yacky',
+  password: process.env.DB_PASSWORD || 'adrian200503',  // ✅ Sin el punto
+  database: process.env.DB_NAME || 'polleria_yacki',    // ✅ Con "i" al final
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  // Configuración para manejar JSON
+  charset: 'utf8mb4',
+  // ✅ FIX: Manejar JSON de forma segura
   typeCast: function (field, next) {
     if (field.type === 'JSON') {
-      return JSON.parse(field.string());
+      const value = field.string();
+      if (value === null || value === undefined) return null;
+      try {
+        return JSON.parse(value);
+      } catch (err) {
+        console.error('Error al parsear JSON:', err.message);
+        return value; // Devolver el string crudo si falla
+      }
     }
     return next();
   }
 });
 
-// Exportar el pool para query directa
 module.exports = pool;
-
-// Método para obtener conexión para transacciones
-pool.getConnection = async function() {
-  return await pool.getConnection();
-};

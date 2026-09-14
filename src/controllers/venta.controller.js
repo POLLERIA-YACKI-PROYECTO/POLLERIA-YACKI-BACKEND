@@ -2,16 +2,59 @@
 const Venta = require('../models/Venta');
 const db = require('../config/database');
 
+// ============================================
+// ✅ GET ALL - Combina ventas + pedidos web pagados
+// ============================================
 exports.getAll = async (req, res) => {
   try {
     const ventas = await Venta.findAll();
-    ventas.forEach(v => {
-      if (typeof v.items === 'string') v.items = JSON.parse(v.items);
+    const pedidosWeb = await Venta.findPedidosClientePagados();
+
+    // Unificar
+    const todas = [...ventas, ...pedidosWeb];
+
+    // Ordenar por fecha descendente
+    todas.sort((a, b) => {
+      const fechaA = new Date(a.fecha_venta || a.created_at).getTime();
+      const fechaB = new Date(b.fecha_venta || b.created_at).getTime();
+      return fechaB - fechaA;
     });
-    res.json(ventas);
+
+    // Parsear items
+    todas.forEach(v => {
+      if (typeof v.items === 'string') {
+        try { v.items = JSON.parse(v.items); }
+        catch { v.items = []; }
+      }
+      if (!Array.isArray(v.items)) v.items = [];
+    });
+
+    res.json(todas);
   } catch (error) {
     console.error('Error en getAll ventas:', error);
     res.status(500).json({ error: 'Error al obtener ventas' });
+  }
+};
+
+// ============================================
+// ✅ NUEVO: Pedidos web pendientes
+// ============================================
+exports.getPedidosWebPendientes = async (req, res) => {
+  try {
+    const pedidos = await Venta.findPedidosClientePendientes();
+
+    pedidos.forEach(v => {
+      if (typeof v.items === 'string') {
+        try { v.items = JSON.parse(v.items); }
+        catch { v.items = []; }
+      }
+      if (!Array.isArray(v.items)) v.items = [];
+    });
+
+    res.json(pedidos);
+  } catch (error) {
+    console.error('Error en getPedidosWebPendientes:', error);
+    res.status(500).json({ error: 'Error al obtener pedidos web pendientes' });
   }
 };
 
