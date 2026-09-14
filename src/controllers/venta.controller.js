@@ -3,24 +3,27 @@ const Venta = require('../models/Venta');
 const db = require('../config/database');
 
 // ============================================
-// ✅ GET ALL - Combina ventas + pedidos web pagados
+// ✅ GET ALL - Combina ventas + pedidos web SIN duplicados
 // ============================================
 exports.getAll = async (req, res) => {
   try {
+    // 1. Ventas (SOLO las que NO vienen de un pedido web)
     const ventas = await Venta.findAll();
+
+    // 2. Pedidos web confirmados (SOLO los que NO tienen venta creada)
     const pedidosWeb = await Venta.findPedidosClientePagados();
 
-    // Unificar
+    // 3. Unificar
     const todas = [...ventas, ...pedidosWeb];
 
-    // Ordenar por fecha descendente
+    // 4. Ordenar por fecha
     todas.sort((a, b) => {
       const fechaA = new Date(a.fecha_venta || a.created_at).getTime();
       const fechaB = new Date(b.fecha_venta || b.created_at).getTime();
       return fechaB - fechaA;
     });
 
-    // Parsear items
+    // 5. Parsear items
     todas.forEach(v => {
       if (typeof v.items === 'string') {
         try { v.items = JSON.parse(v.items); }
@@ -37,7 +40,7 @@ exports.getAll = async (req, res) => {
 };
 
 // ============================================
-// ✅ NUEVO: Pedidos web pendientes
+// ✅ Pedidos web pendientes
 // ============================================
 exports.getPedidosWebPendientes = async (req, res) => {
   try {
@@ -58,6 +61,9 @@ exports.getPedidosWebPendientes = async (req, res) => {
   }
 };
 
+// ============================================
+// GET BY ID
+// ============================================
 exports.getById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -115,7 +121,7 @@ exports.getResumenPorUsuario = async (req, res) => {
         SUM(CASE WHEN metodo_pago = 'yape' THEN total ELSE 0 END) as total_yape,
         SUM(CASE WHEN metodo_pago = 'plin' THEN total ELSE 0 END) as total_plin
       FROM ventas 
-      WHERE usuario_id = ? AND estado = 'completada'
+      WHERE usuario_id = ? AND estado = 'completada' AND deleted_at IS NULL
     `, [usuarioId]);
     res.json(rows[0] || { total_ventas: 0, total_recaudado: 0 });
   } catch (error) {
@@ -133,7 +139,7 @@ exports.getResumenGeneral = async (req, res) => {
         SUM(CASE WHEN tipo_entrega = 'local' THEN total ELSE 0 END) as total_local,
         SUM(CASE WHEN tipo_entrega = 'delivery' THEN total ELSE 0 END) as total_delivery
       FROM ventas 
-      WHERE estado = 'completada'
+      WHERE estado = 'completada' AND deleted_at IS NULL
     `);
     res.json(rows[0] || { total_ventas: 0, total_recaudado: 0 });
   } catch (error) {

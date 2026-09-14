@@ -5,6 +5,7 @@ class Venta {
   static async create(venta) {
     const { 
       pedido_id,
+      pedido_cliente_id,
       usuario_id, 
       mesa_id,
       cliente_id,
@@ -17,16 +18,20 @@ class Venta {
       metodo_pago,
       numero_operacion,
       tipo_entrega,
+      origen,
       estado,
       observaciones
     } = venta;
     
     const [result] = await db.query(
       `INSERT INTO ventas 
-       (pedido_id, usuario_id, mesa_id, cliente_id, cliente_nombre, items, subtotal, igv, descuento, total, metodo_pago, numero_operacion, tipo_entrega, estado, observaciones) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (pedido_id, pedido_cliente_id, usuario_id, mesa_id, cliente_id, cliente_nombre, 
+        items, subtotal, igv, descuento, total, metodo_pago, numero_operacion, 
+        tipo_entrega, origen, estado, observaciones) 
+       VALUES (?, ?, ?, ?, ?, ?, CAST(? AS JSON), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         pedido_id || null,
+        pedido_cliente_id || null,
         usuario_id,
         mesa_id || null,
         cliente_id || null,
@@ -39,6 +44,7 @@ class Venta {
         metodo_pago,
         numero_operacion || null,
         tipo_entrega || 'local',
+        origen || 'mesero',
         estado || 'completada',
         observaciones || null
       ]
@@ -46,17 +52,23 @@ class Venta {
     return { id: result.insertId, ...venta };
   }
 
+  /**
+   * ✅ Buscar todas las ventas (SIN duplicados)
+   */
   static async findAll() {
     const [rows] = await db.query(`
-      SELECT v.*, 
-             u.nombre as usuario_nombre, 
-             u.rol as usuario_rol,
-             c.nombre as cliente_nombre_real
+      SELECT 
+        v.*,
+        COALESCE(v.origen, 'mesero') AS origen,
+        u.nombre as usuario_nombre, 
+        u.apellido as usuario_apellido,
+        u.rol as usuario_rol,
+        c.nombre as cliente_nombre_real
       FROM ventas v
       LEFT JOIN usuarios u ON v.usuario_id = u.id
       LEFT JOIN clientes c ON v.cliente_id = c.id
       WHERE v.deleted_at IS NULL
-      ORDER BY v.id DESC
+      ORDER BY v.fecha_venta DESC
     `);
     return rows;
   }
@@ -161,17 +173,15 @@ class Venta {
     return rows;
   }
 
-  // ============================================
-  // ✅ NUEVO: Pedidos de la carta web (pedidos_cliente pagados)
-  // Se transforman al formato de ventas para mostrarlos juntos
-  // ============================================
+  /**
+   * ✅ Pedidos web confirmados (para unificar)
+   */
   static async findPedidosClientePagados() {
     const [rows] = await db.query(`
       SELECT
         pc.id,
         NULL AS pedido_id,
-        NULL AS usuario_id,
-        NULL AS mesa_id,
+        pc.id AS pedido_cliente_id,
         pc.cliente_id,
         pc.cliente_nombre,
         c.nombre AS cliente_nombre_real,
@@ -186,7 +196,7 @@ class Venta {
         pc.tipo_entrega,
         'completada' AS estado,
         pc.observaciones,
-        pc.created_at AS fecha_venta,
+        pc.fecha_confirmacion AS fecha_venta,
         pc.created_at,
         pc.updated_at,
         pc.deleted_at,
@@ -199,22 +209,26 @@ class Venta {
       LEFT JOIN clientes c ON pc.cliente_id = c.id
       WHERE pc.deleted_at IS NULL
         AND pc.pagado = TRUE
-        AND pc.estado NOT IN ('cancelado')
-      ORDER BY pc.created_at DESC
+        AND pc.fecha_confirmacion IS NOT NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM ventas v 
+          WHERE v.pedido_cliente_id = pc.id 
+            AND v.deleted_at IS NULL
+        )
+      ORDER BY pc.fecha_confirmacion DESC
     `);
     return rows;
   }
 
-  // ============================================
-  // ✅ NUEVO: Pedidos web pendientes de pago
-  // ============================================
+  /**
+   * ✅ Pedidos web pendientes
+   */
   static async findPedidosClientePendientes() {
     const [rows] = await db.query(`
       SELECT
         pc.id,
         NULL AS pedido_id,
-        NULL AS usuario_id,
-        NULL AS mesa_id,
+        pc.id AS pedido_cliente_id,
         pc.cliente_id,
         pc.cliente_nombre,
         c.nombre AS cliente_nombre_real,

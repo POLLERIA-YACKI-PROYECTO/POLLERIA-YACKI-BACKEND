@@ -1,5 +1,7 @@
 // src/controllers/pedidoCliente.controller.js
 const PedidoCliente = require('../models/PedidoCliente');
+const db = require('../config/database');
+const HistorialActividad = require('../models/HistorialActividad');
 
 // ============================================
 // GET ALL
@@ -68,7 +70,6 @@ exports.create = async (req, res) => {
 
     const pedido = req.body;
 
-    // Validaciones
     if (!pedido.items || !Array.isArray(pedido.items) || pedido.items.length === 0) {
       return res.status(400).json({ error: 'El pedido debe tener al menos un producto' });
     }
@@ -82,7 +83,6 @@ exports.create = async (req, res) => {
       return res.status(400).json({ error: 'El nombre del cliente es obligatorio' });
     }
 
-    // Si el pedido viene de un cliente autenticado
     if (req.userId && req.userRol === 'cliente') {
       pedido.cliente_id = req.userId;
     }
@@ -100,103 +100,6 @@ exports.create = async (req, res) => {
       error: 'Error al crear el pedido',
       detalle: error.message
     });
-  }
-};
-
-// ============================================
-// ✅ CONFIRMAR PAGO (solo admin)
-// ============================================
-exports.confirmarPago = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const adminId = req.userId;
-
-    console.log('=== CONFIRMANDO PAGO ===');
-    console.log('Pedido ID:', id);
-    console.log('Admin ID:', adminId);
-
-    if (!adminId) {
-      return res.status(401).json({ error: 'No autenticado' });
-    }
-
-    const pedido = await PedidoCliente.findById(id);
-    if (!pedido) {
-      return res.status(404).json({ error: 'Pedido no encontrado' });
-    }
-    if (pedido.pagado) {
-      return res.status(400).json({ error: 'Este pedido ya fue confirmado' });
-    }
-
-    const actualizado = await PedidoCliente.confirmarPago(id, adminId);
-    if (!actualizado) {
-      return res.status(500).json({ error: 'No se pudo confirmar el pago' });
-    }
-
-    const pedidoActualizado = await PedidoCliente.findById(id);
-
-    // Registrar en historial
-    try {
-      const HistorialActividad = require('../models/HistorialActividad');
-      await HistorialActividad.registrar({
-        usuario_id: adminId,
-        tipo_usuario: 'usuario',
-        accion: 'pedido_completado',
-        descripcion: `Pago confirmado del pedido #${id} - S/ ${pedido.total}`,
-        datos: {
-          pedido_id: id,
-          total: pedido.total,
-          metodo: pedido.metodo_pago
-        }
-      });
-    } catch (e) {
-      console.error('Error al registrar historial:', e);
-    }
-
-    res.json({
-      success: true,
-      message: 'Pago confirmado correctamente',
-      pedido: pedidoActualizado
-    });
-  } catch (error) {
-    console.error('Error al confirmar pago:', error);
-    res.status(500).json({ error: 'Error al confirmar pago' });
-  }
-};
-
-// ============================================
-// ✅ RECHAZAR PAGO (solo admin)
-// ============================================
-exports.rechazarPago = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { motivo } = req.body;
-    const adminId = req.userId;
-
-    const pedido = await PedidoCliente.findById(id);
-    if (!pedido) {
-      return res.status(404).json({ error: 'Pedido no encontrado' });
-    }
-    if (pedido.pagado) {
-      return res.status(400).json({ error: 'No se puede rechazar un pago ya confirmado' });
-    }
-
-    const actualizado = await PedidoCliente.rechazarPago(
-      id,
-      motivo || 'Pago no verificado',
-      adminId
-    );
-
-    if (!actualizado) {
-      return res.status(500).json({ error: 'No se pudo rechazar el pago' });
-    }
-
-    res.json({
-      success: true,
-      message: 'Pago rechazado correctamente'
-    });
-  } catch (error) {
-    console.error('Error al rechazar pago:', error);
-    res.status(500).json({ error: 'Error al rechazar pago' });
   }
 };
 
@@ -230,40 +133,163 @@ exports.subirComprobante = async (req, res) => {
 };
 
 // ============================================
-// MARCAR PAGADO (legacy)
+// ✅ CONFIRMAR PAGO (SOLO ADMIN)
+// - Marca como pagado
+// - Crea VENTA automáticamente con origen = 'pedido_web'
+// - Vincula venta al pedido
 // ============================================
-exports.marcarPagado = async (req, res) => {
+exports.confirmarPago = async (req, res) => {
   try {
     const { id } = req.params;
-    const { metodo_pago, numero_operacion } = req.body;
+    const { tipo_entrega } = req.body;
+    const adminId = req.userId;
+
+    console.log('=== CONFIRMANDO PAGO ===');
+    console.log('Pedido ID:', id);
+    console.log('Admin ID:', adminId);
+    console.log('Tipo entrega:', tipo_entrega);
+
+    if (!adminId) {
+      return res.status(401).json({ error: 'No autenticado' });
+    }
 
     const pedido = await PedidoCliente.findById(id);
     if (!pedido) {
       return res.status(404).json({ error: 'Pedido no encontrado' });
     }
     if (pedido.pagado) {
-      return res.status(400).json({ error: 'Este pedido ya está pagado' });
+      return res.status(400).json({ error: 'Este pedido ya fue confirmado' });
     }
 
-    const actualizado = await PedidoCliente.marcarPagado(
-      id,
-      metodo_pago || pedido.metodo_pago,
-      numero_operacion
-    );
+    // 1. Actualizar tipo de entrega si se especifica
+    let tipoEntregaFinal = pedido.tipo_entrega || 'local';
+    if (tipo_entrega && ['local', 'delivery', 'paraLlevar', 'motorizada'].includes(tipo_entrega)) {
+      await PedidoCliente.actualizarTipoEntrega(id, tipo_entrega);
+      tipoEntregaFinal = tipo_entrega;
+    }
 
+    // 2. Confirmar pago
+    const actualizado = await PedidoCliente.confirmarPago(id, adminId);
     if (!actualizado) {
-      return res.status(500).json({ error: 'No se pudo actualizar el pedido' });
+      return res.status(500).json({ error: 'No se pudo confirmar el pago' });
+    }
+
+    // 3. ✅ CREAR VENTA AUTOMÁTICAMENTE
+    let ventaId = null;
+    try {
+      const items = typeof pedido.items === 'string'
+        ? JSON.parse(pedido.items)
+        : pedido.items;
+
+      // ✅ Verificar si ya existe una venta para este pedido
+      const [ventaExistente] = await db.query(
+        'SELECT id FROM ventas WHERE pedido_cliente_id = ? AND deleted_at IS NULL',
+        [id]
+      );
+
+      if (ventaExistente.length > 0) {
+        ventaId = ventaExistente[0].id;
+        console.log('⚠️ Ya existía una venta para este pedido:', ventaId);
+      } else {
+        // ✅ Crear nueva venta con origen = 'pedido_web'
+        const [ventaResult] = await db.query(
+          `INSERT INTO ventas
+            (pedido_id, pedido_cliente_id, usuario_id, mesa_id, cliente_id, cliente_nombre,
+             items, subtotal, igv, descuento, total,
+             metodo_pago, numero_operacion, tipo_entrega, origen, estado, observaciones)
+           VALUES (NULL, ?, ?, NULL, ?, ?, CAST(? AS JSON), ?, ?, 0, ?, ?, ?, ?, 'pedido_web', 'completada', ?)`,
+          [
+            id,
+            adminId,
+            pedido.cliente_id || null,
+            pedido.cliente_nombre || 'Cliente Web',
+            JSON.stringify(items),
+            parseFloat(pedido.subtotal) || 0,
+            parseFloat(pedido.igv) || 0,
+            parseFloat(pedido.total) || 0,
+            pedido.metodo_pago || 'efectivo',
+            pedido.numero_operacion || null,
+            tipoEntregaFinal,
+            pedido.observaciones || null
+          ]
+        );
+
+        ventaId = ventaResult.insertId;
+        console.log('✅ Venta creada automáticamente con ID:', ventaId);
+
+        await PedidoCliente.vincularVenta(id, ventaId);
+      }
+    } catch (ventaError) {
+      console.error('⚠️ Error al crear venta:', ventaError);
+    }
+
+    // 4. Registrar en historial
+    try {
+      await HistorialActividad.registrar({
+        usuario_id: adminId,
+        tipo_usuario: 'usuario',
+        accion: 'pedido_completado',
+        descripcion: `Pago confirmado del pedido #${id} - S/ ${pedido.total} (${tipoEntregaFinal})`,
+        datos: {
+          pedido_id: id,
+          venta_id: ventaId,
+          total: pedido.total,
+          metodo: pedido.metodo_pago,
+          tipo_entrega: tipoEntregaFinal
+        }
+      });
+    } catch (e) {
+      console.error('Error al registrar historial:', e);
     }
 
     const pedidoActualizado = await PedidoCliente.findById(id);
+
     res.json({
       success: true,
-      message: 'Pago registrado correctamente',
-      pedido: pedidoActualizado
+      message: 'Pago confirmado y venta registrada correctamente',
+      pedido: pedidoActualizado,
+      venta_id: ventaId
     });
   } catch (error) {
-    console.error('Error al marcar pagado:', error);
-    res.status(500).json({ error: 'Error al procesar el pago' });
+    console.error('Error al confirmar pago:', error);
+    res.status(500).json({ error: 'Error al confirmar pago' });
+  }
+};
+
+// ============================================
+// ✅ RECHAZAR PAGO (SOLO ADMIN)
+// ============================================
+exports.rechazarPago = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { motivo } = req.body;
+    const adminId = req.userId;
+
+    const pedido = await PedidoCliente.findById(id);
+    if (!pedido) {
+      return res.status(404).json({ error: 'Pedido no encontrado' });
+    }
+    if (pedido.pagado) {
+      return res.status(400).json({ error: 'No se puede rechazar un pago ya confirmado' });
+    }
+
+    const actualizado = await PedidoCliente.rechazarPago(
+      id,
+      motivo || 'Pago no verificado',
+      adminId
+    );
+
+    if (!actualizado) {
+      return res.status(500).json({ error: 'No se pudo rechazar el pago' });
+    }
+
+    res.json({
+      success: true,
+      message: 'Pago rechazado correctamente'
+    });
+  } catch (error) {
+    console.error('Error al rechazar pago:', error);
+    res.status(500).json({ error: 'Error al rechazar pago' });
   }
 };
 

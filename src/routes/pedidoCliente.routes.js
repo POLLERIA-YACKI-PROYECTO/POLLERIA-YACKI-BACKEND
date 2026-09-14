@@ -8,7 +8,7 @@ const pedidoClienteController = require('../controllers/PedidoCliente.Controller
 const { verifyToken, isAdmin } = require('../middleware/auth');
 
 // ============================================
-// CONFIGURACIÓN DE MULTER PARA COMPROBANTES
+// CONFIGURACIÓN DE MULTER
 // ============================================
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -38,7 +38,7 @@ const upload = multer({
 });
 
 // ============================================
-// RUTAS ESPECÍFICAS PRIMERO
+// RUTAS ESPECÍFICAS
 // ============================================
 router.get('/pendientes', verifyToken, pedidoClienteController.getPendientes);
 router.get('/cliente/:clienteId', verifyToken, pedidoClienteController.getByCliente);
@@ -51,23 +51,7 @@ router.get('/:id', verifyToken, pedidoClienteController.getById);
 router.post('/', verifyToken, pedidoClienteController.create);
 
 // ============================================
-// ✅ CONFIRMAR/RECHAZAR PAGO (SOLO ADMIN)
-// ============================================
-router.put(
-  '/:id/confirmar-pago',
-  verifyToken,
-  isAdmin,
-  pedidoClienteController.confirmarPago
-);
-router.put(
-  '/:id/rechazar-pago',
-  verifyToken,
-  isAdmin,
-  pedidoClienteController.rechazarPago
-);
-
-// ============================================
-// ✅ SUBIR COMPROBANTE (CLIENTE)
+// ✅ SUBIR COMPROBANTE
 // ============================================
 router.post(
   '/:id/comprobante',
@@ -77,9 +61,28 @@ router.post(
 );
 
 // ============================================
+// ✅ CONFIRMAR PAGO (SOLO ADMIN)
+// ============================================
+router.put(
+  '/:id/confirmar-pago',
+  verifyToken,
+  isAdmin,
+  pedidoClienteController.confirmarPago
+);
+
+// ============================================
+// ✅ RECHAZAR PAGO (SOLO ADMIN)
+// ============================================
+router.put(
+  '/:id/rechazar-pago',
+  verifyToken,
+  isAdmin,
+  pedidoClienteController.rechazarPago
+);
+
+// ============================================
 // OTRAS RUTAS
 // ============================================
-router.put('/:id/pagar', verifyToken, pedidoClienteController.marcarPagado);
 router.put('/:id/estado', verifyToken, pedidoClienteController.updateEstado);
 router.delete('/:id', verifyToken, isAdmin, pedidoClienteController.delete);
 

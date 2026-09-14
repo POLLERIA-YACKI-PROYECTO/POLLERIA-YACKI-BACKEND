@@ -84,7 +84,7 @@ class PedidoCliente {
       total,
       tipo_entrega,
       metodo_pago,
-      tipo_transferencia,   // ✅ NUEVO
+      tipo_transferencia,
       numero_operacion,
       observaciones
     } = pedido;
@@ -117,8 +117,21 @@ class PedidoCliente {
   }
 
   /**
-   * ✅ CONFIRMAR PAGO (solo admin)
-   * Marca el pedido como pagado + preparando
+   * ✅ Guardar comprobante de pago
+   */
+  static async guardarComprobante(id, rutaComprobante) {
+    const [result] = await db.query(
+      `UPDATE pedidos_cliente
+       SET comprobante_pago = ?,
+           updated_at = NOW()
+       WHERE id = ? AND deleted_at IS NULL`,
+      [rutaComprobante, id]
+    );
+    return result.affectedRows > 0;
+  }
+
+  /**
+   * ✅ Confirmar pago (admin) - solo marca como pagado, la venta se crea en el controller
    */
   static async confirmarPago(id, confirmadoPor) {
     const [result] = await db.query(
@@ -136,7 +149,30 @@ class PedidoCliente {
   }
 
   /**
-   * ✅ RECHAZAR PAGO (solo admin)
+   * ✅ Vincular venta creada
+   */
+  static async vincularVenta(pedidoId, ventaId) {
+    await db.query(
+      `UPDATE pedidos_cliente SET venta_id = ? WHERE id = ?`,
+      [ventaId, pedidoId]
+    );
+  }
+
+  /**
+   * ✅ Actualizar tipo de entrega (admin)
+   */
+  static async actualizarTipoEntrega(id, tipoEntrega) {
+    const [result] = await db.query(
+      `UPDATE pedidos_cliente
+       SET tipo_entrega = ?, updated_at = NOW()
+       WHERE id = ? AND deleted_at IS NULL`,
+      [tipoEntrega, id]
+    );
+    return result.affectedRows > 0;
+  }
+
+  /**
+   * ✅ Rechazar pago (admin)
    */
   static async rechazarPago(id, motivo, confirmadoPor) {
     const [result] = await db.query(
@@ -148,35 +184,6 @@ class PedidoCliente {
            updated_at = NOW()
        WHERE id = ? AND deleted_at IS NULL AND pagado = FALSE`,
       [confirmadoPor, motivo || 'Pago no verificado', id]
-    );
-    return result.affectedRows > 0;
-  }
-
-  /**
-   * ✅ GUARDAR COMPROBANTE
-   */
-  static async guardarComprobante(id, rutaComprobante) {
-    const [result] = await db.query(
-      `UPDATE pedidos_cliente
-       SET comprobante_pago = ?,
-           updated_at = NOW()
-       WHERE id = ? AND deleted_at IS NULL`,
-      [rutaComprobante, id]
-    );
-    return result.affectedRows > 0;
-  }
-
-  static async marcarPagado(id, metodoPago, numeroOperacion = null) {
-    const [result] = await db.query(
-      `UPDATE pedidos_cliente
-       SET pagado = TRUE,
-           estado = 'preparando',
-           metodo_pago = ?,
-           numero_operacion = ?,
-           fecha_pago = NOW(),
-           updated_at = NOW()
-       WHERE id = ? AND deleted_at IS NULL`,
-      [metodoPago, numeroOperacion, id]
     );
     return result.affectedRows > 0;
   }

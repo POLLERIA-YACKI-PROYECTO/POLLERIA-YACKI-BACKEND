@@ -7,7 +7,6 @@ const HistorialActividad = require('../models/HistorialActividad');
 // HELPERS
 // ============================================
 
-// Helper para registrar actividad sin romper el flujo
 const logActividad = async (data) => {
   try {
     await HistorialActividad.registrar(data);
@@ -16,25 +15,19 @@ const logActividad = async (data) => {
   }
 };
 
-// Helper para IP y user-agent
 const getMeta = (req) => ({
   ip: req.ip || req.headers['x-forwarded-for'] || req.connection?.remoteAddress || null,
   user_agent: req.headers['user-agent'] || null
 });
 
 /**
- * ✅ NUEVO: Resuelve el cliente_id automáticamente
- * - Si ya viene cliente_id, lo usa
- * - Si no, busca por nombre exacto en la tabla clientes
- * - Si tampoco encuentra, devuelve null
+ * ✅ Resuelve el cliente_id automáticamente
  */
 const resolverClienteId = async (cliente_id, cliente_nombre) => {
-  // 1. Si ya viene cliente_id, usarlo
   if (cliente_id && !isNaN(Number(cliente_id))) {
     return Number(cliente_id);
   }
 
-  // 2. Si viene nombre, buscar por nombre exacto
   if (cliente_nombre && String(cliente_nombre).trim()) {
     try {
       const [rows] = await db.query(
@@ -163,18 +156,14 @@ exports.create = async (req, res) => {
     const usuario_id = req.userId;
 
     if (!usuario_id) {
-      console.log('Usuario no autenticado');
       return res.status(401).json({ error: 'Usuario no autenticado' });
     }
 
     if (!items || items.length === 0) {
-      console.log('El pedido debe tener al menos un item');
       return res.status(400).json({ error: 'El pedido debe tener al menos un item' });
     }
 
-    // ✅ Resolver cliente_id automáticamente
     const clienteIdResuelto = await resolverClienteId(cliente_id, cliente_nombre);
-    console.log('Cliente ID resuelto:', clienteIdResuelto);
 
     let itemsProcesados = [];
 
@@ -210,7 +199,6 @@ exports.create = async (req, res) => {
     }
 
     if (itemsProcesados.length === 0) {
-      console.log('No se pudieron procesar los items correctamente');
       return res.status(400).json({
         success: false,
         error: 'Los items del pedido no son válidos'
@@ -225,11 +213,6 @@ exports.create = async (req, res) => {
     const igv = subtotal * 0.18;
     const totalFinal = total || (subtotal + igv);
 
-    console.log('Items procesados:', JSON.stringify(itemsProcesados));
-    console.log('Subtotal:', subtotal);
-    console.log('IGV:', igv);
-    console.log('Total:', totalFinal);
-
     const nuevoPedido = await Pedido.create({
       usuario_id,
       mesa_id: mesa_id || null,
@@ -238,7 +221,7 @@ exports.create = async (req, res) => {
       igv,
       total: totalFinal,
       cliente_nombre: cliente_nombre || 'Cliente',
-      cliente_id: clienteIdResuelto, // ✅ Usar el resuelto
+      cliente_id: clienteIdResuelto,
       tipo: tipo || 'local',
       tipo_entrega: tipo_entrega || 'local',
       estado: 'pendiente',
@@ -247,11 +230,7 @@ exports.create = async (req, res) => {
       pagado: pagado || 0
     });
 
-    console.log('Pedido creado con ID:', nuevoPedido.id);
-
-    // ============================================
-    // HISTORIAL: Registrar creación de pedido
-    // ============================================
+    // Historial
     if (clienteIdResuelto) {
       await logActividad({
         cliente_id: clienteIdResuelto,
@@ -292,27 +271,23 @@ exports.create = async (req, res) => {
       }
     }
 
-    // ============================================
-    // SI YA VIENE PAGADO → Crear venta inmediatamente
-    // ============================================
+    // Si ya viene pagado → crear venta
     if (pagado === true || pagado === 1) {
-      console.log('Pedido marcado como pagado directamente');
-
       await Pedido.updateEstado(nuevoPedido.id, 'entregado');
 
       const ventaData = {
         pedido_id: nuevoPedido.id,
         usuario_id: usuario_id,
-        mesa_id: mesa_id || null,           // ✅ Incluir mesa_id
-        cliente_id: clienteIdResuelto,      // ✅ Usar el resuelto
+        mesa_id: mesa_id || null,
+        cliente_id: clienteIdResuelto,
         cliente_nombre: cliente_nombre || 'Cliente',
         items: itemsProcesados,
         subtotal: subtotal,
         igv: igv,
-        descuento: 0,                        // ✅ Incluir descuento
+        descuento: 0,
         total: totalFinal,
         metodo_pago: metodo_pago || 'efectivo',
-        numero_operacion: null,              // ✅ Incluir numero_operacion
+        numero_operacion: null,
         tipo_entrega: tipo_entrega || 'local',
         estado: 'completada',
         observaciones: observaciones || null
@@ -321,7 +296,6 @@ exports.create = async (req, res) => {
       await Pedido.crearVenta(ventaData);
       await Pedido.marcarPagado(nuevoPedido.id, metodo_pago || 'efectivo');
 
-      // Historial: pedido completado
       await logActividad({
         cliente_id: clienteIdResuelto || null,
         usuario_id: !clienteIdResuelto ? usuario_id : null,
@@ -341,7 +315,6 @@ exports.create = async (req, res) => {
 
   } catch (error) {
     console.error('Error en create:', error);
-    console.error('Stack:', error.stack);
     res.status(500).json({
       success: false,
       error: 'Error al crear pedido',
@@ -357,11 +330,6 @@ exports.marcarPagado = async (req, res) => {
   try {
     const { id } = req.params;
     const { metodo_pago } = req.body;
-
-    console.log('=== MARCANDO PAGO ===');
-    console.log('Pedido ID:', id);
-    console.log('Método de pago:', metodo_pago);
-    console.log('Usuario ID:', req.userId);
 
     if (!metodo_pago) {
       return res.status(400).json({
@@ -399,16 +367,11 @@ exports.marcarPagado = async (req, res) => {
     }
 
     const tipoEntrega = pedido.tipo_entrega || 'local';
-
-    // ✅ Resolver cliente_id (por si el pedido no lo tenía)
     const clienteIdResuelto = await resolverClienteId(
       pedido.cliente_id,
       pedido.cliente_nombre
     );
 
-    console.log('Cliente ID resuelto para venta:', clienteIdResuelto);
-
-    // 1. Actualizar pedido como pagado
     await db.query(
       `UPDATE pedidos
        SET estado = 'entregado',
@@ -421,7 +384,6 @@ exports.marcarPagado = async (req, res) => {
       [clienteIdResuelto, metodo_pago, id]
     );
 
-    // 2. Obtener pedido actualizado
     const [pedidoActualizado] = await db.query(
       'SELECT * FROM pedidos WHERE id = ? AND deleted_at IS NULL',
       [id]
@@ -437,7 +399,6 @@ exports.marcarPagado = async (req, res) => {
       }
     }
 
-    // 3. Crear venta si no existe
     const [ventaExistente] = await db.query(
       'SELECT id FROM ventas WHERE pedido_id = ? AND deleted_at IS NULL',
       [id]
@@ -454,7 +415,7 @@ exports.marcarPagado = async (req, res) => {
           pedidoData.id,
           pedidoData.usuario_id,
           pedidoData.mesa_id || null,
-          clienteIdResuelto,                      // ✅ Usar cliente_id resuelto
+          clienteIdResuelto,
           pedidoData.cliente_nombre || null,
           JSON.stringify(items),
           parseFloat(pedidoData.subtotal) || 0,
@@ -468,12 +429,8 @@ exports.marcarPagado = async (req, res) => {
           pedidoData.observaciones || null
         ]
       );
-      console.log('✅ Venta creada con cliente_id:', clienteIdResuelto);
-    } else {
-      console.log('ℹ️ Ya existía venta para este pedido');
     }
 
-    // 4. Historial: pedido completado / pagado
     await logActividad({
       cliente_id: clienteIdResuelto || null,
       usuario_id: !clienteIdResuelto ? pedidoData.usuario_id : null,
@@ -511,8 +468,6 @@ exports.marcarPagado = async (req, res) => {
 // ============================================
 exports.getPendientes = async (req, res) => {
   try {
-    console.log('=== OBTENIENDO PEDIDOS PENDIENTES ===');
-
     const pedidos = await Pedido.findPendientes();
 
     pedidos.forEach(p => {
@@ -525,7 +480,6 @@ exports.getPendientes = async (req, res) => {
       }
     });
 
-    console.log(`${pedidos.length} pedidos pendientes encontrados`);
     res.json(pedidos);
   } catch (error) {
     console.error('Error en getPendientes:', error);
@@ -538,8 +492,6 @@ exports.getPendientes = async (req, res) => {
 // ============================================
 exports.getPagados = async (req, res) => {
   try {
-    console.log('=== OBTENIENDO PEDIDOS PAGADOS ===');
-
     const pedidos = await Pedido.findPagados();
 
     pedidos.forEach(p => {
@@ -552,7 +504,6 @@ exports.getPagados = async (req, res) => {
       }
     });
 
-    console.log(`${pedidos.length} pedidos pagados encontrados`);
     res.json(pedidos);
   } catch (error) {
     console.error('Error en getPagados:', error);
@@ -566,9 +517,6 @@ exports.getPagados = async (req, res) => {
 exports.getByTipoEntrega = async (req, res) => {
   try {
     const { tipo } = req.params;
-
-    console.log(`=== OBTENIENDO PEDIDOS TIPO: ${tipo} ===`);
-
     const pedidos = await Pedido.findByTipoEntrega(tipo);
 
     pedidos.forEach(p => {
@@ -581,7 +529,6 @@ exports.getByTipoEntrega = async (req, res) => {
       }
     });
 
-    console.log(`${pedidos.length} pedidos tipo ${tipo} encontrados`);
     res.json(pedidos);
   } catch (error) {
     console.error('Error en getByTipoEntrega:', error);
@@ -595,9 +542,6 @@ exports.getByTipoEntrega = async (req, res) => {
 exports.getPedidosPagadosMesero = async (req, res) => {
   try {
     const usuarioId = req.userId;
-
-    console.log('=== PEDIDOS ENTREGADOS DEL MESERO ===');
-    console.log('Mesero ID:', usuarioId);
 
     if (!usuarioId) {
       return res.status(401).json({
@@ -618,7 +562,6 @@ exports.getPedidosPagadosMesero = async (req, res) => {
       }
     });
 
-    console.log(`${pedidos.length} pedidos entregados encontrados para el mesero`);
     res.json(pedidos);
   } catch (error) {
     console.error('Error en getPedidosPagadosMesero:', error);
@@ -656,7 +599,6 @@ exports.updateEstado = async (req, res) => {
         }
       }
 
-      // Historial: si se cancela, registrar
       if (estado === 'cancelado' && pedido) {
         await logActividad({
           cliente_id: pedido.cliente_id || null,
@@ -669,7 +611,6 @@ exports.updateEstado = async (req, res) => {
         });
       }
 
-      // Historial: si se completa/entrega, registrar
       if (estado === 'entregado' && pedido) {
         await logActividad({
           cliente_id: pedido.cliente_id || null,
