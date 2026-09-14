@@ -1,28 +1,41 @@
 // server.js (en la raíz del proyecto)
 // ============================================
-// SERVIDOR - SOLO INICIA LA APP
+// ✅ PASO 1: CARGAR VARIABLES DE ENTORNO PRIMERO
 // ============================================
-// Este archivo SOLO inicia el servidor. La app está en src/app.js
-// Esto permite que los tests importen la app sin iniciar el servidor.
+const dotenv = require('dotenv');
+const path = require('path');
 
+// ✅ Forzar la carga desde la raíz del proyecto
+dotenv.config({ path: path.join(__dirname, '.env') });
+
+// ============================================
+// ✅ PASO 2: AHORA SÍ IMPORTAR LA APP
+// ============================================
+// Al importar app.js, rate-limit.js ya verá NODE_ENV correcto
 const app = require('./src/app');
 const { logger } = require('./src/utils/logger');
 
 const PORT = process.env.PORT || 3000;
-const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
+const isDevelopment =
+  process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
 
 // ============================================
-// NO INICIAR SERVIDOR EN MODO TEST
+// ✅ PASO 3: INICIAR SERVIDOR
 // ============================================
-// Cuando se ejecutan tests con Jest, NODE_ENV=test.
-// Supertest se encarga de iniciar la app en un puerto efímero.
 if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
-    console.log(`Servidor corriendo en http://localhost:${PORT}`);
-    console.log(`Documentación API: http://localhost:${PORT}/api/docs`);
-    console.log(`Seguridad activada`);
-    console.log(`Archivos estáticos: /uploads`);
-    console.log(`Modo: ${isDevelopment ? 'DESARROLLO (rate limit desactivado)' : 'PRODUCCIÓN'}`);
+    console.log('');
+    console.log('========================================');
+    console.log('🍗 POLLERÍA DOÑA YACKI - SERVIDOR');
+    console.log('========================================');
+    console.log(`🌍 Entorno: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🚀 URL: http://localhost:${PORT}`);
+    console.log(`📚 Docs: http://localhost:${PORT}/api/docs`);
+    console.log(`🔒 Seguridad: Activada`);
+    console.log(`📁 Estáticos: /uploads`);
+    console.log(`⏱️  Rate limit: ${isDevelopment ? '🔓 DESACTIVADO' : '🔒 ACTIVADO'}`);
+    console.log('========================================');
+    console.log('');
   });
 }
 
@@ -31,6 +44,11 @@ if (process.env.NODE_ENV !== 'test') {
 // ============================================
 process.on('SIGTERM', () => {
   logger.info('Recibida señal SIGTERM, cerrando servidor...');
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  logger.info('Recibida señal SIGINT, cerrando servidor...');
   process.exit(0);
 });
 

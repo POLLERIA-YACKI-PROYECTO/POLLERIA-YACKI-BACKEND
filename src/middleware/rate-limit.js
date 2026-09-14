@@ -1,38 +1,123 @@
 // src/middleware/rate-limit.js
 const rateLimit = require('express-rate-limit');
+const { ipKeyGenerator } = require('express-rate-limit');
 
+// ✅ Leer NODE_ENV una sola vez
 const isDevelopment =
   process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
 
-console.log(`Rate limit: ${isDevelopment ? 'DESACTIVADO (modo desarrollo)' : 'ACTIVADO'}`);
+// ✅ Un solo log informativo
+const estado = isDevelopment ? '🔓 DESACTIVADO' : '🔒 ACTIVADO';
+console.log(`⏱️  Rate limit: ${estado} (${process.env.NODE_ENV || 'development'})`);
 
-// Rate limit para rutas de autenticación
+// ============================================
+// 🔐 LOGIN / REGISTRO
+// ============================================
 const authLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minuto
-  max: isDevelopment ? 200 : 10,
+  windowMs: 15 * 60 * 1000,
+  max: isDevelopment ? 9999 : 20,
   message: {
     success: false,
-    error: 'Demasiados intentos de inicio de sesión. Por favor espera un momento.'
+    error: 'Demasiados intentos de autenticación. Espera 15 minutos antes de reintentar.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => isDevelopment,
+  skipSuccessfulRequests: true,
+  keyGenerator: (req, res) => {
+    const identificador = req.body?.email || req.body?.dni || 'anonimo';
+    const ip = ipKeyGenerator(req, res);
+    return `${ip}-${identificador}`;
+  }
+});
+
+// ============================================
+// 📦 CREAR PEDIDOS
+// ============================================
+const pedidosLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: isDevelopment ? 9999 : 30,
+  message: {
+    success: false,
+    error: 'Estás creando muchos pedidos. Espera un momento antes de continuar.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => isDevelopment,
+  keyGenerator: (req, res) => {
+    return req.userId ? `user-${req.userId}` : ipKeyGenerator(req, res);
+  }
+});
+
+// ============================================
+// 📤 SUBIR COMPROBANTES
+// ============================================
+const uploadLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: isDevelopment ? 9999 : 20,
+  message: {
+    success: false,
+    error: 'Demasiadas subidas de archivos. Espera un momento.'
   },
   standardHeaders: true,
   legacyHeaders: false,
   skip: () => isDevelopment
 });
 
-// Rate limit general
+// ============================================
+// 🌐 GENERAL
+// ============================================
 const generalLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minuto (antes era 1 segundo)
-  max: isDevelopment ? 2000 : 100, // 2000 en dev, 100 en prod
+  windowMs: 1 * 60 * 1000,
+  max: isDevelopment ? 99999 : 600,
   message: {
     success: false,
     error: 'Demasiadas peticiones. Por favor espera un momento.'
   },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => isDevelopment,
+  keyGenerator: (req, res) => {
+    return req.userId ? `user-${req.userId}` : ipKeyGenerator(req, res);
+  }
+});
+
+// ============================================
+// 🛡️ ESTRICTO
+// ============================================
+const strictLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: isDevelopment ? 9999 : 100,
+  message: {
+    success: false,
+    error: 'Demasiadas peticiones a esta ruta. Espera un momento.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
   skip: () => isDevelopment
+});
+
+// ============================================
+// 🚫 BLOQUEO
+// ============================================
+const blockLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: isDevelopment ? 99999 : 5,
+  message: {
+    success: false,
+    error: 'Tu IP ha sido bloqueada temporalmente por actividad sospechosa.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => isDevelopment,
+  skipSuccessfulRequests: true
 });
 
 module.exports = {
   authLimiter,
-  generalLimiter
+  pedidosLimiter,
+  uploadLimiter,
+  generalLimiter,
+  strictLimiter,
+  blockLimiter
 };
