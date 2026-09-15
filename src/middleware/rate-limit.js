@@ -83,6 +83,24 @@ const generalLimiter = rateLimit({
 });
 
 // ============================================
+// 📖 LECTURAS (GET públicos: categorías, productos, etc.)
+// ============================================
+const lecturaLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,           // 1 minuto
+  max: isDevelopment ? 9999 : 180,   // 180 lecturas/min en producción
+  message: {
+    success: false,
+    error: 'Demasiadas lecturas. Espera un momento antes de continuar.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => isDevelopment,
+  keyGenerator: (req, res) => {
+    return req.userId ? `user-${req.userId}` : ipKeyGenerator(req, res);
+  }
+});
+
+// ============================================
 // 🛡️ ESTRICTO
 // ============================================
 const strictLimiter = rateLimit({
@@ -118,6 +136,7 @@ module.exports = {
   pedidosLimiter,
   uploadLimiter,
   generalLimiter,
+  lecturaLimiter, // ✅ AHORA SÍ EXISTE
   strictLimiter,
   blockLimiter
 };
