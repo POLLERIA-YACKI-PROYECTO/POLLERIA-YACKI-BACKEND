@@ -171,6 +171,33 @@ describe('Pedido Controller', () => {
   });
 
   // ============================================
+  // QR DE PAGO DELIVERY
+  // ============================================
+  describe('GET /api/pedidos/:id/pago/qr', () => {
+    it('debe generar un QR con el monto del pedido delivery', async () => {
+      db.query.mockResolvedValueOnce([[
+        { id: 1, total: 28.32, tipo_entrega: 'delivery', pagado: 0, estado: 'pendiente' }
+      ]]);
+
+      const response = await request(app).get('/api/pedidos/1/pago/qr');
+
+      expect(response.status).toBe(200);
+      expect(response.body.monto).toBe(28.32);
+      expect(response.body.qr).toMatch(/^data:image\/png;base64,/);
+    });
+
+    it('debe rechazar pedidos que no son delivery', async () => {
+      db.query.mockResolvedValueOnce([[
+        { id: 1, total: 28.32, tipo_entrega: 'local', pagado: 0, estado: 'pendiente' }
+      ]]);
+
+      const response = await request(app).get('/api/pedidos/1/pago/qr');
+
+      expect(response.status).toBe(400);
+    });
+  });
+
+  // ============================================
   // GET PENDIENTES
   // ============================================
   describe('GET /api/pedidos/pendientes', () => {

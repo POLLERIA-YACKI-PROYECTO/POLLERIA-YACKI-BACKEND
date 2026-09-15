@@ -11,7 +11,6 @@ const dotenv = require('dotenv');
 const { securityMiddleware } = require('./config/security');
 const { swaggerUi, specs } = require('./config/swagger');
 const { logger } = require('./utils/logger');
-const { authLimiter, generalLimiter } = require('./middleware/rate-limit');
 
 dotenv.config();
 
@@ -21,19 +20,6 @@ const app = express();
 // MIDDLEWARES DE SEGURIDAD
 // ============================================
 securityMiddleware(app);
-
-// ============================================
-// RATE LIMIT - SOLO APLICAR SI NO ES DESARROLLO/TEST
-// ============================================
-const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
-
-if (!isDevelopment) {
-  console.log('Rate limit activado');
-  app.use('/api', generalLimiter);
-  app.use('/api/auth', authLimiter);
-} else {
-  console.log('Rate limit desactivado (modo desarrollo/test)');
-}
 
 // ============================================
 // ARCHIVOS ESTÁTICOS (IMÁGENES)
@@ -100,7 +86,7 @@ app.get('/api/health', async (req, res) => {
       uptime: process.uptime(),
       database: 'connected',
       environment: process.env.NODE_ENV || 'development',
-      rateLimit: isDevelopment ? 'disabled' : 'enabled'
+      rateLimit: process.env.NODE_ENV === 'production' ? 'enabled' : 'disabled'
     });
   } catch (error) {
     logger.error('Health check falló:', error);

@@ -7,6 +7,8 @@ const xss = require('xss');
 const cors = require('cors');
 const compression = require('compression');
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 // ============================================
 // CONFIGURACIÓN DE CORS
 // ============================================
@@ -171,19 +173,19 @@ const securityMiddleware = (app) => {
   app.use(cors(corsOptions));
   app.options('*', cors(corsOptions)); // Preflight
 
-  // 5. Rate limiting global
-  app.use(limiter);
+  // 5. Rate limiting solo en producción
+  if (isProduction) {
+    app.use(limiter);
+    app.use('/api/auth', authLimiter);
+  }
 
-  // 6. Rate limiting específico para auth
-  app.use('/api/auth', authLimiter);
-
-  // 7. Sanitización de entrada
+  // 6. Sanitización de entrada
   app.use(sanitizeInput);
 
-  // 8. Prevención de inyección NoSQL
+  // 7. Prevención de inyección NoSQL
   app.use(mongoSanitize());
 
-  // 9. Logging de seguridad
+  // 8. Logging de seguridad
   app.use((req, res, next) => {
     console.log(
       `${new Date().toISOString()} | ${req.method} ${req.path} | IP: ${req.ip}`

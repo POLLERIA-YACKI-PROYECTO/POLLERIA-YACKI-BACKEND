@@ -24,6 +24,9 @@ router.get('/tipo/:tipo', verifyToken, pedidoController.getByTipoEntrega);
 // RUTAS CON PARÁMETROS (después de las específicas)
 // ============================================
 
+// Generar QR de pago para pedido delivery
+router.get('/:id/pago/qr', verifyToken, pedidoController.getPagoQr);
+
 // Obtener todos los pedidos
 router.get('/', verifyToken, pedidoController.getAll);
 

@@ -1,6 +1,9 @@
 // src/controllers/pedido.controller.js - COMPLETO Y CORREGIDO
 const Pedido = require('../models/Pedido');
 const db = require('../config/database');
+const QRCode = require('qrcode');
+const fs = require('fs');
+const path = require('path');
 
 // ============================================
 // OBTENER TODOS LOS PEDIDOS
@@ -549,5 +552,84 @@ exports.delete = async (req, res) => {
       success: false,
       error: 'Error al eliminar pedido' 
     });
+  }
+};
+
+// ============================================
+// GENERAR QR DE PAGO PARA PEDIDO DELIVERY
+// ============================================
+exports.getPagoQr = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [pedidos] = await db.query(
+      'SELECT id, total, tipo_entrega, pagado, estado FROM pedidos WHERE id = ? AND deleted_at IS NULL',
+      [id]
+    );
+
+    if (pedidos.length === 0) {
+      return res.status(404).json({ success: false, error: 'Pedido no encontrado' });
+    }
+
+    const pedido = pedidos[0];
+
+    if (pedido.tipo_entrega !== 'delivery') {
+      return res.status(400).json({
+        success: false,
+        error: 'El QR de pago solo está disponible para pedidos delivery'
+      });
+    }
+
+    if (pedido.pagado === 1 || pedido.pagado === true) {
+      return res.status(400).json({ success: false, error: 'El pedido ya está pagado' });
+    }
+
+    if (pedido.estado === 'cancelado') {
+      return res.status(400).json({ success: false, error: 'El pedido está cancelado' });
+    }
+
+    const monto = Number(pedido.total).toFixed(2);
+    const moneda = process.env.PAYMENT_QR_CURRENCY || 'PEN';
+    const qrImagePath = path.join(__dirname, '../../uploads/pagos/yape-qr.png');
+    const qrUrl = `${process.env.API_URL || ''}/uploads/pagos/yape-qr.png`;
+
+    if (fs.existsSync(qrImagePath)) {
+      return res.json({
+        success: true,
+        pedido_id: pedido.id,
+        monto: Number(monto),
+        moneda,
+        qr: qrUrl,
+        qr_url: qrUrl,
+        payment_ready: true,
+        payment_note: 'El monto debe mostrarse al cliente antes de confirmar el pago.'
+      });
+    }
+
+    const paymentUrl = process.env.PAYMENT_QR_URL;
+    const qrContent = paymentUrl
+      ? paymentUrl
+        .replace('{orderId}', String(pedido.id))
+        .replace('{amount}', monto)
+        .replace('{currency}', moneda)
+      : JSON.stringify({ comercio: 'Polleria Yacky', pedido: pedido.id, monto, moneda });
+
+    const qrDataUrl = await QRCode.toDataURL(qrContent, {
+      errorCorrectionLevel: 'M',
+      width: 320,
+      margin: 2
+    });
+
+    return res.json({
+      success: true,
+      pedido_id: pedido.id,
+      monto: Number(monto),
+      moneda,
+      qr: qrDataUrl,
+      qr_content: qrContent,
+      payment_ready: Boolean(paymentUrl)
+    });
+  } catch (error) {
+    console.error('Error al generar QR de pago:', error);
+    return res.status(500).json({ success: false, error: 'Error al generar QR de pago' });
   }
 };
