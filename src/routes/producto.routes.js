@@ -8,47 +8,91 @@ const { verifyToken, isAdmin } = require('../middleware/auth');
 const { upload, handleMulterError } = require('../config/multer');
 
 // ============================================
-// ✅ RUTAS PÚBLICAS
+// ✅ RUTAS ESPECÍFICAS PRIMERO (sin parámetros)
 // ============================================
 router.get('/', productoController.getAll);
 router.get('/disponibles', productoController.getDisponibles);
 router.get('/categoria/:categoriaId', productoController.getByCategoria);
-router.get('/:id', productoController.getById);
 
 // ============================================
-// RUTAS PROTEGIDAS - Solo Admin
+// ✅ RUTAS PROTEGIDAS — Admin
 // ============================================
-router.post('/', 
-  verifyToken, 
+
+// Crear producto (con imagen)
+router.post(
+  '/',
+  verifyToken,
   isAdmin,
   upload.single('imagen'),
   handleMulterError,
   productoController.create
 );
 
-router.put('/:id', 
-  verifyToken, 
-  isAdmin,
-  upload.single('imagen'),
-  handleMulterError,
-  productoController.update
-);
-
-//  Actualizar SOLO la imagen
-router.patch('/:id/imagen',
+// ✅ Actualizar SOLO la imagen — VA ANTES que PUT /:id
+router.patch(
+  '/:id/imagen',
   verifyToken,
   isAdmin,
   upload.single('imagen'),
   handleMulterError,
   productoController.updateImage
 );
-// Restaurar imagen por defecto
-router.patch('/:id/restore-image',
+
+// ✅ Alias con PUT para compatibilidad
+router.put(
+  '/:id/imagen',
+  verifyToken,
+  isAdmin,
+  upload.single('imagen'),
+  handleMulterError,
+  productoController.updateImage
+);
+
+// ✅ Toggle disponible/agotado — VA ANTES que PUT /:id
+router.patch(
+  '/:id/toggle',
+  verifyToken,
+  isAdmin,
+  productoController.toggleDisponible
+);
+
+// ✅ Restaurar imagen por defecto — VA ANTES que PUT /:id
+router.patch(
+  '/:id/restore-image',
   verifyToken,
   isAdmin,
   productoController.restoreDefaultImage
 );
 
-router.delete('/:id', verifyToken, isAdmin, productoController.delete);
+// ✅ Alias con PUT para compatibilidad
+router.put(
+  '/:id/restore-image',
+  verifyToken,
+  isAdmin,
+  productoController.restoreDefaultImage
+);
+
+// ✅ Actualizar producto completo (con o sin imagen)
+router.put(
+  '/:id',
+  verifyToken,
+  isAdmin,
+  upload.single('imagen'),
+  handleMulterError,
+  productoController.update
+);
+
+// ✅ Eliminar producto
+router.delete(
+  '/:id',
+  verifyToken,
+  isAdmin,
+  productoController.delete
+);
+
+// ============================================
+// ⚠️ RUTAS CON PARÁMETRO AL FINAL (catch-all)
+// ============================================
+router.get('/:id', productoController.getById);
 
 module.exports = router;

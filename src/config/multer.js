@@ -3,12 +3,8 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// ============================================
-// CONFIGURACIÓN DE ALMACENAMIENTO
-// ============================================
 const uploadDir = path.join(__dirname, '../../uploads/productos');
 
-// Crear el directorio si no existe
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
   console.log('[MULTER] Directorio de uploads creado:', uploadDir);
@@ -25,9 +21,6 @@ const storage = multer.diskStorage({
   }
 });
 
-// ============================================
-// FILTRO DE ARCHIVOS (solo imágenes)
-// ============================================
 const fileFilter = (req, file, cb) => {
   const allowedTypes = /jpeg|jpg|png|gif|webp/;
   const extName = allowedTypes.test(
@@ -42,23 +35,14 @@ const fileFilter = (req, file, cb) => {
   cb(new Error('Solo se permiten imágenes (jpeg, jpg, png, gif, webp)'));
 };
 
-// ============================================
-// INSTANCIA DE MULTER
-// ============================================
 const upload = multer({
   storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024 // 5 MB máximo
-  },
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter
 });
 
-// ============================================
-// MANEJADOR DE ERRORES DE MULTER
-// ============================================
 const handleMulterError = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
-    // Errores específicos de multer
     let mensaje = 'Error al subir el archivo';
 
     switch (err.code) {
@@ -86,7 +70,6 @@ const handleMulterError = (err, req, res, next) => {
   }
 
   if (err) {
-    // Errores del fileFilter (tipo de archivo no permitido)
     return res.status(400).json({
       success: false,
       error: err.message || 'Error al procesar el archivo'
@@ -96,10 +79,8 @@ const handleMulterError = (err, req, res, next) => {
   next();
 };
 
-// ============================================
-// EXPORTAR
-// ============================================
 module.exports = {
+  uploadDir,        // ✅ CLAVE: exportar uploadDir
   upload,
   handleMulterError
 };

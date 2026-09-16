@@ -5,23 +5,62 @@ const fs = require('fs');
 const { uploadDir } = require('../config/multer');
 const { DEFAULT_IMAGE_NAME, getImageUrl, isDefaultImage } = require('../config/default-image');
 
+// ============================================
+// ✅ ELIMINAR IMAGEN (BLINDADO CON GUARDAS)
+// ============================================
 const eliminarImagenPersonalizada = (nombreImagen) => {
-  if (!nombreImagen || isDefaultImage(nombreImagen)) {
+  // Guarda 1: sin nombre
+  if (!nombreImagen) {
+    console.log('ℹ️ No hay imagen para eliminar');
     return;
   }
 
-  const rutaImagen = path.join(uploadDir, path.basename(nombreImagen));
+  // Guarda 2: no es string
+  if (typeof nombreImagen !== 'string') {
+    console.log('ℹ️ nombreImagen no es string, se ignora');
+    return;
+  }
 
-  if (fs.existsSync(rutaImagen)) {
-    fs.unlinkSync(rutaImagen);
+  // Guarda 3: es la default
+  if (isDefaultImage(nombreImagen)) {
+    console.log('ℹ️ Es la imagen por defecto, no se elimina');
+    return;
+  }
+
+  // Guarda 4: nombre vacío
+  const nombreLimpio = nombreImagen.trim();
+  if (!nombreLimpio) {
+    console.log('ℹ️ Nombre de imagen vacío, se ignora');
+    return;
+  }
+
+  // Guarda 5: uploadDir undefined
+  if (!uploadDir) {
+    console.error('❌ uploadDir no está configurado en multer.js');
+    return;
+  }
+
+  try {
+    const rutaImagen = path.join(uploadDir, path.basename(nombreLimpio));
+
+    if (fs.existsSync(rutaImagen)) {
+      fs.unlinkSync(rutaImagen);
+      console.log(`✅ Imagen eliminada: ${nombreLimpio}`);
+    } else {
+      console.log(`ℹ️ Imagen no encontrada en disco: ${nombreLimpio}`);
+    }
+  } catch (err) {
+    console.error(`❌ Error al eliminar imagen "${nombreLimpio}":`, err.message);
+    // ⚠️ NO relanzar el error — la operación principal debe continuar
   }
 };
 
-// Obtener todos los productos (con URL de imagen)
+// ============================================
+// GET ALL
+// ============================================
 exports.getAll = async (req, res) => {
   try {
     const productos = await Producto.findAll();
-    // Agregar URL completa de la imagen
     const productosConUrl = productos.map(p => ({
       ...p,
       imagenUrl: getImageUrl(p.imagen),
@@ -34,7 +73,9 @@ exports.getAll = async (req, res) => {
   }
 };
 
-// Obtener productos disponibles
+// ============================================
+// GET DISPONIBLES
+// ============================================
 exports.getDisponibles = async (req, res) => {
   try {
     const productos = await Producto.findAvailable();
@@ -50,7 +91,9 @@ exports.getDisponibles = async (req, res) => {
   }
 };
 
-// Obtener productos por categoría
+// ============================================
+// GET BY CATEGORIA
+// ============================================
 exports.getByCategoria = async (req, res) => {
   try {
     const { categoriaId } = req.params;
@@ -67,7 +110,9 @@ exports.getByCategoria = async (req, res) => {
   }
 };
 
-// Obtener producto por ID
+// ============================================
+// GET BY ID
+// ============================================
 exports.getById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -84,12 +129,14 @@ exports.getById = async (req, res) => {
   }
 };
 
-// Crear producto con imagen
+// ============================================
+// CREATE
+// ============================================
 exports.create = async (req, res) => {
   try {
-    const { 
-      categoria_id, nombre, precio, descripcion, stock, 
-      disponible, agotado 
+    const {
+      categoria_id, nombre, precio, descripcion, stock,
+      disponible, agotado
     } = req.body;
 
     if (!nombre || !precio) {
@@ -104,9 +151,9 @@ exports.create = async (req, res) => {
     }
 
     const nuevoProducto = await Producto.create({
-      categoria_id, 
-      nombre, 
-      precio: parseFloat(precio), 
+      categoria_id,
+      nombre,
+      precio: parseFloat(precio),
       descripcion,
       stock: stock || 0,
       disponible: disponible !== undefined ? disponible === 'true' : true,
@@ -127,13 +174,15 @@ exports.create = async (req, res) => {
   }
 };
 
-// Actualizar producto
+// ============================================
+// UPDATE
+// ============================================
 exports.update = async (req, res) => {
   try {
     const { id } = req.params;
-    const { 
-      nombre, precio, descripcion, categoria_id, stock, 
-      disponible, agotado 
+    const {
+      nombre, precio, descripcion, categoria_id, stock,
+      disponible, agotado
     } = req.body;
 
     const productoExistente = await Producto.findById(id);
@@ -149,8 +198,8 @@ exports.update = async (req, res) => {
     }
 
     const actualizado = await Producto.update(id, {
-      nombre, 
-      precio: parseFloat(precio), 
+      nombre,
+      precio: parseFloat(precio),
       descripcion,
       categoria_id,
       stock: stock || 0,
@@ -160,10 +209,7 @@ exports.update = async (req, res) => {
     });
 
     if (actualizado) {
-      if (
-        req.file &&
-        productoExistente.imagen !== imagen
-      ) {
+      if (req.file && productoExistente.imagen !== imagen) {
         eliminarImagenPersonalizada(productoExistente.imagen);
       }
 
@@ -180,11 +226,13 @@ exports.update = async (req, res) => {
   }
 };
 
-// Actualizar SOLO la imagen
+// ============================================
+// UPDATE IMAGE
+// ============================================
 exports.updateImage = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const productoExistente = await Producto.findById(id);
     if (!productoExistente) {
       return res.status(404).json({
@@ -231,11 +279,57 @@ exports.updateImage = async (req, res) => {
   }
 };
 
-// Restaurar imagen por defecto
+// ============================================
+// ✅ TOGGLE DISPONIBLE (NUEVO - FALTABA)
+// ============================================
+exports.toggleDisponible = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const producto = await Producto.findById(id);
+    if (!producto) {
+      return res.status(404).json({
+        success: false,
+        error: 'Producto no encontrado'
+      });
+    }
+
+    // ✅ Invertir el estado agotado
+    const nuevoAgotado = !producto.agotado;
+
+    await Producto.update(id, {
+      ...producto,
+      agotado: nuevoAgotado
+    });
+
+    const productoActualizado = await Producto.findById(id);
+    productoActualizado.imagenUrl = getImageUrl(productoActualizado.imagen);
+    productoActualizado.esDefault = isDefaultImage(productoActualizado.imagen);
+
+    res.json({
+      success: true,
+      message: nuevoAgotado
+        ? 'Producto marcado como agotado'
+        : 'Producto marcado como disponible',
+      producto: productoActualizado,
+      agotado: nuevoAgotado
+    });
+  } catch (error) {
+    console.error('Error en toggleDisponible:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error al cambiar disponibilidad'
+    });
+  }
+};
+
+// ============================================
+// RESTORE DEFAULT IMAGE
+// ============================================
 exports.restoreDefaultImage = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const productoExistente = await Producto.findById(id);
     if (!productoExistente) {
       return res.status(404).json({
@@ -274,11 +368,13 @@ exports.restoreDefaultImage = async (req, res) => {
   }
 };
 
-// Eliminar producto
+// ============================================
+// DELETE
+// ============================================
 exports.delete = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const producto = await Producto.findById(id);
     if (!producto) {
       return res.status(404).json({ error: 'Producto no encontrado' });
