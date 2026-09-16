@@ -5,41 +5,35 @@ const pedidoController = require('../controllers/pedido.controller');
 const { verifyToken, isAdmin } = require('../middleware/auth');
 
 // ============================================
-//  RUTAS ESPECÍFICAS PRIMERO (sin parámetros)
+// ⚠️ RUTAS ESPECÍFICAS PRIMERO (ANTES de /:id)
 // ============================================
 
-// Obtener pedidos pendientes
+// Pedidos pendientes
 router.get('/pendientes', verifyToken, pedidoController.getPendientes);
 
-// Obtener pedidos pagados
+// Pedidos pagados
 router.get('/pagados', verifyToken, pedidoController.getPagados);
 
-// Obtener pedidos entregados del mesero
+// ✅ Pedidos pagados del mesero actual (coincide con el frontend)
+router.get('/pagados-mesero', verifyToken, pedidoController.getPedidosPagadosMesero);
+
+// ⚠️ Alias de compatibilidad (por si acaso)
 router.get('/entregados/mesero', verifyToken, pedidoController.getPedidosPagadosMesero);
 
-// Obtener pedidos por tipo de entrega
+// Pedidos por tipo de entrega
 router.get('/tipo/:tipo', verifyToken, pedidoController.getByTipoEntrega);
 
 // ============================================
-// RUTAS CON PARÁMETROS (después de las específicas)
+// RUTAS CON PARÁMETROS (DESPUÉS de las específicas)
 // ============================================
 
-// Obtener todos los pedidos
 router.get('/', verifyToken, pedidoController.getAll);
-
-// Obtener pedido por ID
-router.get('/:id', verifyToken, pedidoController.getById);
-
-// Crear pedido
 router.post('/', verifyToken, pedidoController.create);
 
-// Actualizar estado del pedido
+router.get('/:id', verifyToken, pedidoController.getById);
 router.put('/:id/estado', verifyToken, pedidoController.updateEstado);
-
-// Marcar pedido como pagado
 router.patch('/:id/pagar', verifyToken, pedidoController.marcarPagado);
 
-// Eliminar pedido (solo admin)
 router.delete('/:id', verifyToken, isAdmin, pedidoController.delete);
 
 module.exports = router;
