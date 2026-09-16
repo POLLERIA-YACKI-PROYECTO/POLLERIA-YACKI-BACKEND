@@ -192,25 +192,29 @@ exports.confirmarPago = async (req, res) => {
         console.log('⚠️ Ya existía una venta para este pedido:', ventaId);
       } else {
         // ✅ Crear nueva venta con origen = 'pedido_web'
+        // ✅ CORREGIDO: 17 columnas y 17 valores balanceados
         const [ventaResult] = await db.query(
           `INSERT INTO ventas
-            (pedido_id, pedido_cliente_id, usuario_id, mesa_id, cliente_id, cliente_nombre,
-             items, subtotal, igv, descuento, total,
-             metodo_pago, numero_operacion, tipo_entrega, origen, estado, observaciones)
-           VALUES (NULL, ?, ?, NULL, ?, ?, CAST(? AS JSON), ?, ?, 0, ?, ?, ?, ?, 'pedido_web', 'completada', ?)`,
+              (pedido_id, pedido_cliente_id, usuario_id, mesa_id, cliente_id, cliente_nombre,
+               items, subtotal, igv, descuento, total,
+               metodo_pago, numero_operacion, tipo_entrega, origen, estado, observaciones)
+           VALUES
+              (NULL, ?, ?, NULL, ?, ?,
+               ?, ?, ?, 0, ?,
+               ?, ?, ?, 'pedido_web', 'completada', ?)`,
           [
-            id,
-            adminId,
-            pedido.cliente_id || null,
-            pedido.cliente_nombre || 'Cliente Web',
-            JSON.stringify(items),
-            parseFloat(pedido.subtotal) || 0,
-            parseFloat(pedido.igv) || 0,
-            parseFloat(pedido.total) || 0,
-            pedido.metodo_pago || 'efectivo',
-            pedido.numero_operacion || null,
-            tipoEntregaFinal,
-            pedido.observaciones || null
+            id,                                        // pedido_cliente_id
+            adminId,                                   // usuario_id
+            pedido.cliente_id || null,                 // cliente_id
+            pedido.cliente_nombre || 'Cliente Web',    // cliente_nombre
+            JSON.stringify(items),                     // items
+            parseFloat(pedido.subtotal) || 0,          // subtotal
+            parseFloat(pedido.igv) || 0,               // igv
+            parseFloat(pedido.total) || 0,             // total
+            pedido.metodo_pago || 'efectivo',          // metodo_pago
+            pedido.numero_operacion || null,           // numero_operacion
+            tipoEntregaFinal,                          // tipo_entrega
+            pedido.observaciones || null               // observaciones
           ]
         );
 
@@ -221,6 +225,9 @@ exports.confirmarPago = async (req, res) => {
       }
     } catch (ventaError) {
       console.error('⚠️ Error al crear venta:', ventaError);
+      console.error('⚠️ SQL Message:', ventaError.sqlMessage);
+      console.error('⚠️ SQL Code:', ventaError.code);
+      // No lanzamos error para que el pago ya confirmado no se pierda
     }
 
     // 4. Registrar en historial
@@ -251,8 +258,15 @@ exports.confirmarPago = async (req, res) => {
       venta_id: ventaId
     });
   } catch (error) {
-    console.error('Error al confirmar pago:', error);
-    res.status(500).json({ error: 'Error al confirmar pago' });
+    console.error('❌ Error al confirmar pago:', error);
+    console.error('❌ SQL Message:', error.sqlMessage);
+    console.error('❌ SQL Code:', error.code);
+    res.status(500).json({
+      error: 'Error al confirmar pago',
+      detalle: error.message,
+      code: error.code,
+      sqlMessage: error.sqlMessage
+    });
   }
 };
 
