@@ -15,6 +15,46 @@ class PedidoCliente {
     return row;
   }
 
+  // ============================================
+  // ✅ VALIDAR cliente_id
+  // ============================================
+  /**
+   * Verifica que el cliente_id exista en la BD.
+   * Si no existe o es inválido, devuelve null.
+   */
+  static async validarClienteId(clienteId) {
+    if (clienteId === null || clienteId === undefined || clienteId === '') {
+      return null;
+    }
+
+    const idNum = Number(clienteId);
+
+    if (!Number.isFinite(idNum) || idNum <= 0) {
+      console.warn(`⚠️ cliente_id inválido: "${clienteId}" → se usará NULL`);
+      return null;
+    }
+
+    try {
+      const [rows] = await db.query(
+        'SELECT id FROM clientes WHERE id = ? AND deleted_at IS NULL LIMIT 1',
+        [idNum]
+      );
+
+      if (rows.length > 0) {
+        return idNum;
+      }
+
+      console.warn(`⚠️ Cliente con ID ${idNum} no existe en la BD → se usará NULL`);
+      return null;
+    } catch (err) {
+      console.error('Error al validar cliente_id:', err.message);
+      return null;
+    }
+  }
+
+  // ============================================
+  // FIND ALL
+  // ============================================
   static async findAll() {
     const [rows] = await db.query(
       `SELECT pc.*, 
@@ -30,6 +70,9 @@ class PedidoCliente {
     return rows.map(this.parseItems);
   }
 
+  // ============================================
+  // FIND BY ID
+  // ============================================
   static async findById(id) {
     const [rows] = await db.query(
       `SELECT pc.*, 
@@ -45,6 +88,9 @@ class PedidoCliente {
     return rows[0] ? this.parseItems(rows[0]) : null;
   }
 
+  // ============================================
+  // FIND BY CLIENTE ID
+  // ============================================
   static async findByClienteId(clienteId) {
     const [rows] = await db.query(
       `SELECT * FROM pedidos_cliente
@@ -55,6 +101,9 @@ class PedidoCliente {
     return rows.map(this.parseItems);
   }
 
+  // ============================================
+  // FIND PENDIENTES
+  // ============================================
   static async findPendientes() {
     const [rows] = await db.query(
       `SELECT pc.*, 
@@ -71,6 +120,9 @@ class PedidoCliente {
     return rows.map(this.parseItems);
   }
 
+  // ============================================
+  // ✅ CREATE (con validación de cliente_id)
+  // ============================================
   static async create(pedido) {
     const {
       cliente_id,
@@ -89,6 +141,28 @@ class PedidoCliente {
       observaciones
     } = pedido;
 
+    // ✅ VALIDAR cliente_id: si no existe, se guarda como NULL
+    const clienteIdFinal = await this.validarClienteId(cliente_id);
+
+    // ✅ VALIDAR items
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      throw new Error('El pedido debe tener al menos un producto');
+    }
+
+    // ✅ VALIDAR datos mínimos
+    if (!cliente_nombre || !String(cliente_nombre).trim()) {
+      throw new Error('El nombre del cliente es requerido');
+    }
+
+    if (!metodo_pago) {
+      throw new Error('El método de pago es requerido');
+    }
+
+    const totalNum = Number(total);
+    if (!Number.isFinite(totalNum) || totalNum <= 0) {
+      throw new Error('El total del pedido es inválido');
+    }
+
     const [result] = await db.query(
       `INSERT INTO pedidos_cliente
         (cliente_id, cliente_nombre, cliente_telefono, cliente_direccion,
@@ -96,15 +170,15 @@ class PedidoCliente {
          metodo_pago, tipo_transferencia, numero_operacion, observaciones, estado, pagado)
        VALUES (?, ?, ?, ?, ?, CAST(? AS JSON), ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', FALSE)`,
       [
-        cliente_id || null,
-        cliente_nombre,
-        cliente_telefono || null,
-        cliente_direccion || null,
-        cliente_referencia || null,
+        clienteIdFinal,
+        String(cliente_nombre).trim(),
+        cliente_telefono ? String(cliente_telefono).trim() : null,
+        cliente_direccion ? String(cliente_direccion).trim() : null,
+        cliente_referencia ? String(cliente_referencia).trim() : null,
         JSON.stringify(items),
-        subtotal,
-        igv,
-        total,
+        Number(subtotal) || 0,
+        Number(igv) || 0,
+        totalNum,
         tipo_entrega || 'delivery',
         metodo_pago,
         tipo_transferencia || null,
@@ -113,12 +187,14 @@ class PedidoCliente {
       ]
     );
 
+    console.log(`✅ Pedido cliente #${result.insertId} creado (cliente_id: ${clienteIdFinal ?? 'NULL'})`);
+
     return this.findById(result.insertId);
   }
 
-  /**
-   * ✅ Guardar comprobante de pago
-   */
+  // ============================================
+  // GUARDAR COMPROBANTE
+  // ============================================
   static async guardarComprobante(id, rutaComprobante) {
     const [result] = await db.query(
       `UPDATE pedidos_cliente
@@ -130,9 +206,9 @@ class PedidoCliente {
     return result.affectedRows > 0;
   }
 
-  /**
-   * ✅ Confirmar pago (admin) - solo marca como pagado, la venta se crea en el controller
-   */
+  // ============================================
+  // CONFIRMAR PAGO (admin)
+  // ============================================
   static async confirmarPago(id, confirmadoPor) {
     const [result] = await db.query(
       `UPDATE pedidos_cliente
@@ -148,9 +224,9 @@ class PedidoCliente {
     return result.affectedRows > 0;
   }
 
-  /**
-   * ✅ Vincular venta creada
-   */
+  // ============================================
+  // VINCULAR VENTA
+  // ============================================
   static async vincularVenta(pedidoId, ventaId) {
     await db.query(
       `UPDATE pedidos_cliente SET venta_id = ? WHERE id = ?`,
@@ -158,9 +234,9 @@ class PedidoCliente {
     );
   }
 
-  /**
-   * ✅ Actualizar tipo de entrega (admin)
-   */
+  // ============================================
+  // ACTUALIZAR TIPO DE ENTREGA
+  // ============================================
   static async actualizarTipoEntrega(id, tipoEntrega) {
     const [result] = await db.query(
       `UPDATE pedidos_cliente
@@ -171,9 +247,9 @@ class PedidoCliente {
     return result.affectedRows > 0;
   }
 
-  /**
-   * ✅ Rechazar pago (admin)
-   */
+  // ============================================
+  // RECHAZAR PAGO
+  // ============================================
   static async rechazarPago(id, motivo, confirmadoPor) {
     const [result] = await db.query(
       `UPDATE pedidos_cliente
@@ -188,6 +264,9 @@ class PedidoCliente {
     return result.affectedRows > 0;
   }
 
+  // ============================================
+  // UPDATE ESTADO
+  // ============================================
   static async updateEstado(id, estado) {
     const [result] = await db.query(
       `UPDATE pedidos_cliente
@@ -198,6 +277,9 @@ class PedidoCliente {
     return result.affectedRows > 0;
   }
 
+  // ============================================
+  // DELETE (soft)
+  // ============================================
   static async delete(id) {
     const [result] = await db.query(
       `UPDATE pedidos_cliente

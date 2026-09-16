@@ -3,24 +3,23 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-const uploadDir = path.join(__dirname, '../../uploads/productos');
+// ============================================
+// DIRECTORIOS
+// ============================================
+const uploadDirProductos = path.join(__dirname, '../../uploads/productos');
+const uploadDirConfig = path.join(__dirname, '../../uploads/configuracion');
 
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-  console.log('[MULTER] Directorio de uploads creado:', uploadDir);
-}
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    cb(null, `producto-${uniqueSuffix}${ext}`);
+// Crear directorios si no existen
+[uploadDirProductos, uploadDirConfig].forEach((dir) => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+    console.log('[MULTER] Directorio creado:', dir);
   }
 });
 
+// ============================================
+// FILTRO DE ARCHIVOS (solo imágenes)
+// ============================================
 const fileFilter = (req, file, cb) => {
   const allowedTypes = /jpeg|jpg|png|gif|webp/;
   const extName = allowedTypes.test(
@@ -35,12 +34,51 @@ const fileFilter = (req, file, cb) => {
   cb(new Error('Solo se permiten imágenes (jpeg, jpg, png, gif, webp)'));
 };
 
+// ============================================
+// STORAGE PRODUCTOS
+// ============================================
+const storageProductos = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadDirProductos),
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, `producto-${uniqueSuffix}${ext}`);
+  }
+});
+
+// ============================================
+// STORAGE CONFIGURACIÓN (QRs, logos)
+// ============================================
+const storageConfig = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadDirConfig),
+  filename: (req, file, cb) => {
+    const clave = String(req.body?.clave || 'config')
+      .replace(/[^a-z0-9_-]/gi, '')
+      .toLowerCase();
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, `${clave}-${uniqueSuffix}${ext}`);
+  }
+});
+
+// ============================================
+// INSTANCIAS DE MULTER
+// ============================================
 const upload = multer({
-  storage,
+  storage: storageProductos,
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter
 });
 
+const uploadConfig = multer({
+  storage: storageConfig,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter
+});
+
+// ============================================
+// MANEJADOR DE ERRORES DE MULTER
+// ============================================
 const handleMulterError = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     let mensaje = 'Error al subir el archivo';
@@ -79,8 +117,13 @@ const handleMulterError = (err, req, res, next) => {
   next();
 };
 
+// ============================================
+// EXPORTAR
+// ============================================
 module.exports = {
-  uploadDir,        // ✅ CLAVE: exportar uploadDir
+  uploadDir: uploadDirProductos,
+  uploadDirConfig,
   upload,
+  uploadConfig,
   handleMulterError
 };
