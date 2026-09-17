@@ -148,7 +148,7 @@ describe('Reporte Controller', () => {
       ]);
 
       const response = await request(app)
-        .get('/api/reportes/por-cliente')  // ✅ Funciona gracias al alias
+        .get('/api/reportes/por-cliente')  // Funciona gracias al alias
         .query({ fechaInicio: '2026-09-01', fechaFin: '2026-09-30' });
 
       expect(response.status).toBe(200);

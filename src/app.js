@@ -21,9 +21,9 @@ securityMiddleware(app);
 const isDevelopment =
   process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
 
-// ✅ TIMEOUT GLOBAL — mejorado
+// TIMEOUT GLOBAL - mejorado
 app.use((req, res, next) => {
-  // ⬇️ Guarda el timeout para limpiarlo si la respuesta termina antes
+  // Guarda el timeout para limpiarlo si la respuesta termina antes
   const timeoutId = setTimeout(() => {
     if (!res.headersSent) {
       logger.error(`Timeout en ${req.method} ${req.url}`);
@@ -34,14 +34,14 @@ app.use((req, res, next) => {
     }
   }, 30000);
 
-  // ⬇️ Limpia el timeout cuando la respuesta termina
+  // Limpia el timeout cuando la respuesta termina
   res.on('finish', () => clearTimeout(timeoutId));
   res.on('close', () => clearTimeout(timeoutId));
 
   next();
 });
 
-// ✅ HEALTH CHECK — MUY IMPORTANTE que esté ANTES de cualquier rate limit
+// HEALTH CHECK - MUY IMPORTANTE que esté ANTES de cualquier rate limit
 app.get('/api/health', async (req, res) => {
   try {
     const db = require('./config/database');
@@ -65,9 +65,9 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-// ✅ RATE LIMIT POR RUTA (solo en producción)
+// RATE LIMIT POR RUTA (solo en producción)
 if (!isDevelopment) {
-  console.log('🔒 Rate limit ACTIVADO - Aplicando por ruta...');
+  console.log('Rate limit ACTIVADO - Aplicando por ruta...');
 
   app.use('/api/auth/login-admin', authLimiter);
   app.use('/api/auth/login-mesero', authLimiter);
@@ -82,17 +82,17 @@ if (!isDevelopment) {
   app.use('/api/dashboard', strictLimiter);
   app.use('/api/reportes', strictLimiter);
 
-  // 🌐 General — al final, con límite alto
+  // General - al final, con límite alto
   app.use('/api', generalLimiter);
 } else {
-  console.log('🔓 Rate limit DESACTIVADO - Todas las peticiones permitidas');
+  console.log('Rate limit DESACTIVADO - Todas las peticiones permitidas');
 }
 
 // ARCHIVOS ESTÁTICOS
 app.use(
   '/uploads',
   express.static(path.join(__dirname, '../uploads'), {
-    maxAge: '7d',  // ⬆️ cachea imágenes 7 días en el navegador
+    maxAge: '7d',  // cachea imágenes 7 días en el navegador
     setHeaders: (response) => {
       response.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     }

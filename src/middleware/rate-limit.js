@@ -5,10 +5,10 @@ const { ipKeyGenerator } = require('express-rate-limit');
 const isDevelopment =
   process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
 
-const estado = isDevelopment ? '🔓 DESACTIVADO' : '🔒 ACTIVADO';
-console.log(`⏱️  Rate limit: ${estado} (${process.env.NODE_ENV || 'development'})`);
+const estado = isDevelopment ? 'DESACTIVADO' : 'ACTIVADO';
+console.log(`Rate limit: ${estado} (${process.env.NODE_ENV || 'development'})`);
 
-// 🔐 LOGIN / REGISTRO
+// LOGIN / REGISTRO
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: isDevelopment ? 9999 : 30,
@@ -27,10 +27,10 @@ const authLimiter = rateLimit({
   }
 });
 
-// 📦 CREAR PEDIDOS
+// CREAR PEDIDOS
 const pedidosLimiter = rateLimit({
   windowMs: 5 * 60 * 1000,
-  max: isDevelopment ? 9999 : 60,  // ⬆️ subido de 30 a 60
+  max: isDevelopment ? 9999 : 60,  // subido de 30 a 60
   message: {
     success: false,
     error: 'Estás creando muchos pedidos. Espera un momento antes de continuar.'
@@ -43,7 +43,7 @@ const pedidosLimiter = rateLimit({
   }
 });
 
-// 📤 SUBIR COMPROBANTES
+// SUBIR COMPROBANTES
 const uploadLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   max: isDevelopment ? 9999 : 30,
@@ -56,10 +56,10 @@ const uploadLimiter = rateLimit({
   skip: () => isDevelopment
 });
 
-// 🌐 GENERAL  ⬅️ ESTE ES EL CLAVE PARA EL F5
+// GENERAL - ESTE ES EL CLAVE PARA EL F5
 const generalLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,
-  max: isDevelopment ? 99999 : 3000,  // ⬆️ subido de 600 a 3000 por minuto
+  max: isDevelopment ? 99999 : 3000,  // subido de 600 a 3000 por minuto
   message: {
     success: false,
     error: 'Demasiadas peticiones. Por favor espera un momento.'
@@ -67,7 +67,7 @@ const generalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: () => isDevelopment,
-  // ⬇️ CLAVE: no cuentes las peticiones OPTIONS (preflight)
+  // CLAVE: no cuentes las peticiones OPTIONS (preflight)
   skipFailedRequests: false,
   requestWasSuccessful: (req, res) => res.statusCode < 500,
   keyGenerator: (req, res) => {
@@ -75,10 +75,10 @@ const generalLimiter = rateLimit({
   }
 });
 
-// 📖 LECTURAS
+// LECTURAS
 const lecturaLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,
-  max: isDevelopment ? 9999 : 600,  // ⬆️ subido de 180 a 600
+  max: isDevelopment ? 9999 : 600,  // subido de 180 a 600
   message: {
     success: false,
     error: 'Demasiadas lecturas. Espera un momento antes de continuar.'
@@ -91,7 +91,7 @@ const lecturaLimiter = rateLimit({
   }
 });
 
-// 🛡️ ESTRICTO
+// ESTRICTO
 const strictLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,
   max: isDevelopment ? 9999 : 300,
@@ -104,7 +104,7 @@ const strictLimiter = rateLimit({
   skip: () => isDevelopment
 });
 
-// 🚫 BLOQUEO
+// BLOQUEO
 const blockLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: isDevelopment ? 99999 : 10,

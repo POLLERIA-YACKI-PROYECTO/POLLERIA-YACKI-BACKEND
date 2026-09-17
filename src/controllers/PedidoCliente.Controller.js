@@ -104,7 +104,7 @@ exports.create = async (req, res) => {
 };
 
 // ============================================
-// ✅ SUBIR COMPROBANTE
+// SUBIR COMPROBANTE
 // ============================================
 exports.subirComprobante = async (req, res) => {
   try {
@@ -133,7 +133,7 @@ exports.subirComprobante = async (req, res) => {
 };
 
 // ============================================
-// ✅ CONFIRMAR PAGO (SOLO ADMIN)
+// CONFIRMAR PAGO (SOLO ADMIN)
 // - Marca como pagado
 // - Crea VENTA automáticamente con origen = 'pedido_web'
 // - Vincula venta al pedido
@@ -174,14 +174,14 @@ exports.confirmarPago = async (req, res) => {
       return res.status(500).json({ error: 'No se pudo confirmar el pago' });
     }
 
-    // 3. ✅ CREAR VENTA AUTOMÁTICAMENTE
+    // 3. CREAR VENTA AUTOMÁTICAMENTE
     let ventaId = null;
     try {
       const items = typeof pedido.items === 'string'
         ? JSON.parse(pedido.items)
         : pedido.items;
 
-      // ✅ Verificar si ya existe una venta para este pedido
+      // Verificar si ya existe una venta para este pedido
       const [ventaExistente] = await db.query(
         'SELECT id FROM ventas WHERE pedido_cliente_id = ? AND deleted_at IS NULL',
         [id]
@@ -189,10 +189,10 @@ exports.confirmarPago = async (req, res) => {
 
       if (ventaExistente.length > 0) {
         ventaId = ventaExistente[0].id;
-        console.log('⚠️ Ya existía una venta para este pedido:', ventaId);
+        console.log('Ya existía una venta para este pedido:', ventaId);
       } else {
-        // ✅ Crear nueva venta con origen = 'pedido_web'
-        // ✅ CORREGIDO: 17 columnas y 17 valores balanceados
+        // Crear nueva venta con origen = 'pedido_web'
+        // CORREGIDO: 17 columnas y 17 valores balanceados
         const [ventaResult] = await db.query(
           `INSERT INTO ventas
               (pedido_id, pedido_cliente_id, usuario_id, mesa_id, cliente_id, cliente_nombre,
@@ -219,14 +219,14 @@ exports.confirmarPago = async (req, res) => {
         );
 
         ventaId = ventaResult.insertId;
-        console.log('✅ Venta creada automáticamente con ID:', ventaId);
+        console.log('Venta creada automáticamente con ID:', ventaId);
 
         await PedidoCliente.vincularVenta(id, ventaId);
       }
     } catch (ventaError) {
-      console.error('⚠️ Error al crear venta:', ventaError);
-      console.error('⚠️ SQL Message:', ventaError.sqlMessage);
-      console.error('⚠️ SQL Code:', ventaError.code);
+      console.error('Error al crear venta:', ventaError);
+      console.error('SQL Message:', ventaError.sqlMessage);
+      console.error('SQL Code:', ventaError.code);
       // No lanzamos error para que el pago ya confirmado no se pierda
     }
 
@@ -258,9 +258,9 @@ exports.confirmarPago = async (req, res) => {
       venta_id: ventaId
     });
   } catch (error) {
-    console.error('❌ Error al confirmar pago:', error);
-    console.error('❌ SQL Message:', error.sqlMessage);
-    console.error('❌ SQL Code:', error.code);
+    console.error('Error al confirmar pago:', error);
+    console.error('SQL Message:', error.sqlMessage);
+    console.error('SQL Code:', error.code);
     res.status(500).json({
       error: 'Error al confirmar pago',
       detalle: error.message,
@@ -271,7 +271,7 @@ exports.confirmarPago = async (req, res) => {
 };
 
 // ============================================
-// ✅ RECHAZAR PAGO (SOLO ADMIN)
+// RECHAZAR PAGO (SOLO ADMIN)
 // ============================================
 exports.rechazarPago = async (req, res) => {
   try {

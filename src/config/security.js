@@ -6,7 +6,7 @@ const xss = require('xss');
 const cors = require('cors');
 const compression = require('compression');
 
-// ❌ ELIMINADO: const rateLimit = require('express-rate-limit');
+// ELIMINADO: const rateLimit = require('express-rate-limit');
 
 // ============================================
 // CORS
@@ -24,7 +24,7 @@ const corsOptions = {
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
-    console.warn(`⚠️ CORS bloqueado para origin: ${origin}`);
+    console.warn(`CORS bloqueado para origin: ${origin}`);
     return callback(new Error(`CORS no permitido para: ${origin}`), false);
   },
   credentials: true,
@@ -85,7 +85,7 @@ const sanitizeInput = (req, res, next) => {
 
 // ============================================
 // MIDDLEWARE DE SEGURIDAD
-// ❌ SIN rate limits (se aplican en app.js desde rate-limit.js)
+// SIN rate limits (se aplican en app.js desde rate-limit.js)
 // ============================================
 const securityMiddleware = (app) => {
   app.use(express.json({ limit: '25mb' }));
@@ -137,14 +137,14 @@ const securityMiddleware = (app) => {
   app.use(cors(corsOptions));
   app.options('*', cors(corsOptions));
 
-  // ❌ ELIMINADO: app.use(limiter);
-  // ❌ ELIMINADO: app.use('/api/auth', authLimiter);
+  // ELIMINADO: app.use(limiter);
+  // ELIMINADO: app.use('/api/auth', authLimiter);
 
   app.use(sanitizeInput);
   app.use(mongoSanitize());
 
   app.use((req, res, next) => {
-    // ✅ Solo loguear errores, no cada petición (reduce ruido)
+    // Solo loguear errores, no cada petición (reduce ruido)
     next();
   });
 };

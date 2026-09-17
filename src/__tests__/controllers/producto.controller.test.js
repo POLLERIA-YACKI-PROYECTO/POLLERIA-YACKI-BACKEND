@@ -1,7 +1,7 @@
 // src/__tests__/controllers/producto.controller.test.js
 const request = require('supertest');
 
-// ✅ Los mocks de multer y default-image están en jest.setup.js
+// Los mocks de multer y default-image están en jest.setup.js
 
 jest.mock('../../models/Producto');
 jest.mock('../../middleware/auth', () => ({
@@ -204,7 +204,7 @@ describe('Producto Controller', () => {
       Producto.updateImage.mockResolvedValue(true);
 
       const response = await request(app)
-        .patch('/api/productos/1/restore-image');  // ✅ Ruta correcta
+        .patch('/api/productos/1/restore-image');  //Ruta correcta
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
@@ -214,7 +214,7 @@ describe('Producto Controller', () => {
       Producto.findById.mockResolvedValue(null);
 
       const response = await request(app)
-        .patch('/api/productos/999/restore-image');  // ✅ Ruta correcta
+        .patch('/api/productos/999/restore-image');  // Ruta correcta
 
       expect(response.status).toBe(404);
     });

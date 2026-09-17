@@ -21,7 +21,7 @@ const getMeta = (req) => ({
 });
 
 /**
- * ✅ Resuelve el cliente_id automáticamente
+ * Resuelve el cliente_id automáticamente
  */
 const resolverClienteId = async (cliente_id, cliente_nombre) => {
   if (cliente_id && !isNaN(Number(cliente_id))) {
@@ -38,7 +38,7 @@ const resolverClienteId = async (cliente_id, cliente_nombre) => {
         [String(cliente_nombre).trim()]
       );
       if (rows[0]) {
-        console.log(`✅ Cliente resuelto por nombre "${cliente_nombre}" → id ${rows[0].id}`);
+        console.log(` Cliente resuelto por nombre "${cliente_nombre}" → id ${rows[0].id}`);
         return rows[0].id;
       }
     } catch (err) {
@@ -46,7 +46,7 @@ const resolverClienteId = async (cliente_id, cliente_nombre) => {
     }
   }
 
-  console.log(`⚠️ No se pudo resolver cliente_id para "${cliente_nombre}"`);
+  console.log(` No se pudo resolver cliente_id para "${cliente_nombre}"`);
   return null;
 };
 

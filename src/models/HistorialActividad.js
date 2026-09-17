@@ -82,7 +82,7 @@ const HistorialActividad = {
   },
 
   // ============================================
-  // ✅ RESUMEN DE CLIENTES CON COMPRAS REALES
+  //  RESUMEN DE CLIENTES CON COMPRAS REALES
   // Cuenta desde `ventas` + `pedidos_cliente`
   // ============================================
   async resumenClientes() {
@@ -169,7 +169,7 @@ const HistorialActividad = {
   },
 
   // ============================================
-  // ✅ SOLO CLIENTES SIN COMPRAS
+  //  SOLO CLIENTES SIN COMPRAS
   // ============================================
   async clientesSinCompras() {
     const [rows] = await db.query(`
@@ -209,7 +209,7 @@ const HistorialActividad = {
   },
 
   // ============================================
-  // ✅ SOLO CLIENTES CON COMPRAS
+  //  SOLO CLIENTES CON COMPRAS
   // ============================================
   async clientesConCompras() {
     const [rows] = await db.query(`
@@ -307,7 +307,7 @@ const HistorialActividad = {
   },
 
   // ============================================
-  // ✅ DETALLE DE COMPRAS DE UN CLIENTE
+  //  DETALLE DE COMPRAS DE UN CLIENTE
   // Une ventas + pedidos_cliente ordenados por fecha
   // ============================================
   async getComprasByCliente(clienteId) {
@@ -399,7 +399,7 @@ const HistorialActividad = {
   },
 
   // ============================================
-  // ✅ ESTADÍSTICAS GENERALES
+  //  ESTADÍSTICAS GENERALES
   // ============================================
   async estadisticas() {
     const [rows] = await db.query(`

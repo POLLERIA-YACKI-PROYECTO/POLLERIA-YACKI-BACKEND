@@ -53,7 +53,7 @@ class Venta {
   }
 
   /**
-   * ✅ Buscar todas las ventas (SIN duplicados)
+   *  Buscar todas las ventas (SIN duplicados)
    */
   static async findAll() {
     const [rows] = await db.query(`
@@ -174,7 +174,7 @@ class Venta {
   }
 
   /**
-   * ✅ Pedidos web confirmados (para unificar)
+   * Pedidos web confirmados (para unificar)
    */
   static async findPedidosClientePagados() {
     const [rows] = await db.query(`
@@ -221,7 +221,7 @@ class Venta {
   }
 
   /**
-   * ✅ Pedidos web pendientes
+   *  Pedidos web pendientes
    */
   static async findPedidosClientePendientes() {
     const [rows] = await db.query(`

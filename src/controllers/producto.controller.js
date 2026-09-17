@@ -6,37 +6,37 @@ const { uploadDir } = require('../config/multer');
 const { DEFAULT_IMAGE_NAME, getImageUrl, isDefaultImage } = require('../config/default-image');
 
 // ============================================
-// ✅ ELIMINAR IMAGEN (BLINDADO CON GUARDAS)
+// ELIMINAR IMAGEN (BLINDADO CON GUARDAS)
 // ============================================
 const eliminarImagenPersonalizada = (nombreImagen) => {
   // Guarda 1: sin nombre
   if (!nombreImagen) {
-    console.log('ℹ️ No hay imagen para eliminar');
+    console.log('No hay imagen para eliminar');
     return;
   }
 
   // Guarda 2: no es string
   if (typeof nombreImagen !== 'string') {
-    console.log('ℹ️ nombreImagen no es string, se ignora');
+    console.log('nombreImagen no es string, se ignora');
     return;
   }
 
   // Guarda 3: es la default
   if (isDefaultImage(nombreImagen)) {
-    console.log('ℹ️ Es la imagen por defecto, no se elimina');
+    console.log('Es la imagen por defecto, no se elimina');
     return;
   }
 
   // Guarda 4: nombre vacío
   const nombreLimpio = nombreImagen.trim();
   if (!nombreLimpio) {
-    console.log('ℹ️ Nombre de imagen vacío, se ignora');
+    console.log('Nombre de imagen vacío, se ignora');
     return;
   }
 
   // Guarda 5: uploadDir undefined
   if (!uploadDir) {
-    console.error('❌ uploadDir no está configurado en multer.js');
+    console.error('uploadDir no está configurado en multer.js');
     return;
   }
 
@@ -45,13 +45,13 @@ const eliminarImagenPersonalizada = (nombreImagen) => {
 
     if (fs.existsSync(rutaImagen)) {
       fs.unlinkSync(rutaImagen);
-      console.log(`✅ Imagen eliminada: ${nombreLimpio}`);
+      console.log(`Imagen eliminada: ${nombreLimpio}`);
     } else {
-      console.log(`ℹ️ Imagen no encontrada en disco: ${nombreLimpio}`);
+      console.log(`Imagen no encontrada en disco: ${nombreLimpio}`);
     }
   } catch (err) {
-    console.error(`❌ Error al eliminar imagen "${nombreLimpio}":`, err.message);
-    // ⚠️ NO relanzar el error — la operación principal debe continuar
+    console.error(`Error al eliminar imagen "${nombreLimpio}":`, err.message);
+    // NO relanzar el error — la operación principal debe continuar
   }
 };
 
@@ -280,7 +280,7 @@ exports.updateImage = async (req, res) => {
 };
 
 // ============================================
-// ✅ TOGGLE DISPONIBLE (NUEVO - FALTABA)
+// TOGGLE DISPONIBLE (NUEVO - FALTABA)
 // ============================================
 exports.toggleDisponible = async (req, res) => {
   try {
@@ -294,7 +294,7 @@ exports.toggleDisponible = async (req, res) => {
       });
     }
 
-    // ✅ Invertir el estado agotado
+    // Invertir el estado agotado
     const nuevoAgotado = !producto.agotado;
 
     await Producto.update(id, {

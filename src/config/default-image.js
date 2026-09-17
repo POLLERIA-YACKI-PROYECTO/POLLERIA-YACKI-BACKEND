@@ -21,10 +21,10 @@ const ensureDefaultImage = () => {
 
   // Verificar si la imagen por defecto existe
   if (!fs.existsSync(DEFAULT_IMAGE_PATH)) {
-    console.warn('[DEFAULT-IMAGE] ⚠️ Imagen por defecto NO encontrada en:', DEFAULT_IMAGE_PATH);
+    console.warn('[DEFAULT-IMAGE] Imagen por defecto NO encontrada en:', DEFAULT_IMAGE_PATH);
     console.warn('[DEFAULT-IMAGE] Coloca una imagen llamada "imagen.jpg" en la carpeta uploads/productos/');
   } else {
-    console.log('[DEFAULT-IMAGE] ✅ Imagen por defecto encontrada');
+    console.log('[DEFAULT-IMAGE] Imagen por defecto encontrada');
   }
 };
 
@@ -32,24 +32,24 @@ const ensureDefaultImage = () => {
 // OBTENER URL DE LA IMAGEN
 // ============================================
 const getImageUrl = (imagen) => {
-  // ✅ Guarda 1: si no hay imagen, retornar la default
+  // Guarda 1: si no hay imagen, retornar la default
   if (!imagen) {
     return `/uploads/productos/${DEFAULT_IMAGE_NAME}`;
   }
 
-  // ✅ Guarda 2: si es un objeto (por error), convertir a string
+  // Guarda 2: si es un objeto (por error), convertir a string
   if (typeof imagen === 'object') {
-    console.warn('[DEFAULT-IMAGE] ⚠️ Imagen es un objeto, se esperaba string:', imagen);
+    console.warn('[DEFAULT-IMAGE] Imagen es un objeto, se esperaba string:', imagen);
     return `/uploads/productos/${DEFAULT_IMAGE_NAME}`;
   }
 
-  // ✅ Guarda 3: si es la default, retornar la default
+  // Guarda 3: si es la default, retornar la default
   const imagenStr = String(imagen).trim();
   if (imagenStr === DEFAULT_IMAGE_NAME) {
     return `/uploads/productos/${DEFAULT_IMAGE_NAME}`;
   }
 
-  // ✅ Guarda 4: si ya es una URL completa, retornarla tal cual
+  // Guarda 4: si ya es una URL completa, retornarla tal cual
   if (
     imagenStr.startsWith('http://') ||
     imagenStr.startsWith('https://') ||
@@ -67,7 +67,7 @@ const getImageUrl = (imagen) => {
 // OBTENER NOMBRE DE LA IMAGEN
 // ============================================
 const getImageName = (imagen) => {
-  // ✅ Guarda: si no hay imagen, retornar la default
+  // Guarda: si no hay imagen, retornar la default
   if (!imagen || typeof imagen !== 'string' || !imagen.trim()) {
     return DEFAULT_IMAGE_NAME;
   }
@@ -78,10 +78,10 @@ const getImageName = (imagen) => {
 // VERIFICAR SI ES LA IMAGEN POR DEFECTO
 // ============================================
 const isDefaultImage = (imagen) => {
-  // ✅ Guarda: si no hay imagen, ES la default
+  // Guarda: si no hay imagen, ES la default
   if (!imagen) return true;
 
-  // ✅ Guarda: si es un objeto, ES la default (no debería pasar)
+  // Guarda: si es un objeto, ES la default (no debería pasar)
   if (typeof imagen !== 'string') return true;
 
   return imagen.trim() === DEFAULT_IMAGE_NAME;
@@ -93,7 +93,7 @@ const isDefaultImage = (imagen) => {
 module.exports = {
   DEFAULT_IMAGE_NAME,
   DEFAULT_IMAGE_PATH,
-  UPLOADS_DIR,           // ✅ AGREGADO (útil para otros módulos)
+  UPLOADS_DIR,           // AGREGADO (útil para otros módulos)
   ensureDefaultImage,
   getImageUrl,
   getImageName,

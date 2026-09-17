@@ -34,7 +34,7 @@ router.get('/por-cliente', reporteController.getReportePorCliente);
 router.get('/motorizada', reporteController.getReporteMotorizada);
 
 // ============================================
-// ✅ NUEVO: REPORTE SEMANAL
+// NUEVO: REPORTE SEMANAL
 // ============================================
 router.get('/semanal', reporteController.getReporteSemanal);
 

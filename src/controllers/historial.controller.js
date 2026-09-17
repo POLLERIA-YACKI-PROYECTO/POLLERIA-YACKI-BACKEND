@@ -81,7 +81,7 @@ exports.estadisticas = async (req, res) => {
 };
 
 // ============================================
-// ✅ RESUMEN COMPLETO (una sola petición)
+// RESUMEN COMPLETO (una sola petición)
 // ============================================
 exports.resumenCompleto = async (req, res) => {
   try {
@@ -105,7 +105,7 @@ exports.resumenCompleto = async (req, res) => {
 };
 
 // ============================================
-// ✅ NUEVO: DETALLE DE COMPRAS DE UN CLIENTE
+//  NUEVO: DETALLE DE COMPRAS DE UN CLIENTE
 // ============================================
 exports.getComprasByCliente = async (req, res) => {
   try {

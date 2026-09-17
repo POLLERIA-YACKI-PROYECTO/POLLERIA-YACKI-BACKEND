@@ -1,13 +1,13 @@
 // src/__tests__/controllers/categoria.controller.test.js
 const request = require('supertest');
 
-// ✅ Mockear el modelo
+// Mockear el modelo
 jest.mock('../../models/Categoria');
 
 const app = require('../../app');
 const Categoria = require('../../models/Categoria');
 
-// ✅ Mockear autenticación para rutas protegidas
+// Mockear autenticación para rutas protegidas
 jest.mock('../../middleware/auth', () => ({
   verifyToken: (req, res, next) => {
     req.userId = 1;

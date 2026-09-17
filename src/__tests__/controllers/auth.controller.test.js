@@ -2,7 +2,7 @@
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
 
-// ✅ IMPORTANTE: Mockear el modelo ANTES de importar el controlador
+// IMPORTANTE: Mockear el modelo ANTES de importar el controlador
 jest.mock('../../models/Usuario');
 
 const app = require('../../app');

@@ -16,7 +16,7 @@ class PedidoCliente {
   }
 
   // ============================================
-  // ✅ VALIDAR cliente_id
+  // VALIDAR cliente_id
   // ============================================
   /**
    * Verifica que el cliente_id exista en la BD.
@@ -30,7 +30,7 @@ class PedidoCliente {
     const idNum = Number(clienteId);
 
     if (!Number.isFinite(idNum) || idNum <= 0) {
-      console.warn(`⚠️ cliente_id inválido: "${clienteId}" → se usará NULL`);
+      console.warn(`cliente_id inválido: "${clienteId}" -> se usará NULL`);
       return null;
     }
 
@@ -44,7 +44,7 @@ class PedidoCliente {
         return idNum;
       }
 
-      console.warn(`⚠️ Cliente con ID ${idNum} no existe en la BD → se usará NULL`);
+      console.warn(`Cliente con ID ${idNum} no existe en la BD -> se usará NULL`);
       return null;
     } catch (err) {
       console.error('Error al validar cliente_id:', err.message);
@@ -121,7 +121,7 @@ class PedidoCliente {
   }
 
   // ============================================
-  // ✅ CREATE (con validación de cliente_id)
+  // CREATE (con validación de cliente_id)
   // ============================================
   static async create(pedido) {
     const {
@@ -141,15 +141,15 @@ class PedidoCliente {
       observaciones
     } = pedido;
 
-    // ✅ VALIDAR cliente_id: si no existe, se guarda como NULL
+    // VALIDAR cliente_id: si no existe, se guarda como NULL
     const clienteIdFinal = await this.validarClienteId(cliente_id);
 
-    // ✅ VALIDAR items
+    // VALIDAR items
     if (!items || !Array.isArray(items) || items.length === 0) {
       throw new Error('El pedido debe tener al menos un producto');
     }
 
-    // ✅ VALIDAR datos mínimos
+    // VALIDAR datos mínimos
     if (!cliente_nombre || !String(cliente_nombre).trim()) {
       throw new Error('El nombre del cliente es requerido');
     }
@@ -187,7 +187,7 @@ class PedidoCliente {
       ]
     );
 
-    console.log(`✅ Pedido cliente #${result.insertId} creado (cliente_id: ${clienteIdFinal ?? 'NULL'})`);
+    console.log(`Pedido cliente #${result.insertId} creado (cliente_id: ${clienteIdFinal ?? 'NULL'})`);
 
     return this.findById(result.insertId);
   }

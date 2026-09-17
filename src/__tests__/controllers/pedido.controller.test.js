@@ -1,7 +1,7 @@
 // src/__tests__/controllers/pedido.controller.test.js
 const request = require('supertest');
 
-// ✅ Los mocks de multer y default-image están en jest.setup.js
+// Los mocks de multer y default-image están en jest.setup.js
 jest.mock('../../models/Pedido');
 jest.mock('../../config/database');
 jest.mock('../../middleware/auth', () => ({

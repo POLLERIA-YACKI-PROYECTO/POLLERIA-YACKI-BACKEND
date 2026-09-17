@@ -4,18 +4,18 @@ const router = express.Router();
 const productoController = require('../controllers/producto.controller');
 const { verifyToken, isAdmin } = require('../middleware/auth');
 
-// ✅ Importar correctamente el objeto con upload y handleMulterError
+//  Importar correctamente el objeto con upload y handleMulterError
 const { upload, handleMulterError } = require('../config/multer');
 
 // ============================================
-// ✅ RUTAS ESPECÍFICAS PRIMERO (sin parámetros)
+//  RUTAS ESPECÍFICAS PRIMERO (sin parámetros)
 // ============================================
 router.get('/', productoController.getAll);
 router.get('/disponibles', productoController.getDisponibles);
 router.get('/categoria/:categoriaId', productoController.getByCategoria);
 
 // ============================================
-// ✅ RUTAS PROTEGIDAS — Admin
+//  RUTAS PROTEGIDAS — Admin
 // ============================================
 
 // Crear producto (con imagen)
@@ -28,7 +28,7 @@ router.post(
   productoController.create
 );
 
-// ✅ Actualizar SOLO la imagen — VA ANTES que PUT /:id
+//  Actualizar SOLO la imagen — VA ANTES que PUT /:id
 router.patch(
   '/:id/imagen',
   verifyToken,
@@ -38,7 +38,7 @@ router.patch(
   productoController.updateImage
 );
 
-// ✅ Alias con PUT para compatibilidad
+//  Alias con PUT para compatibilidad
 router.put(
   '/:id/imagen',
   verifyToken,
@@ -48,7 +48,7 @@ router.put(
   productoController.updateImage
 );
 
-// ✅ Toggle disponible/agotado — VA ANTES que PUT /:id
+//  Toggle disponible/agotado — VA ANTES que PUT /:id
 router.patch(
   '/:id/toggle',
   verifyToken,
@@ -56,7 +56,7 @@ router.patch(
   productoController.toggleDisponible
 );
 
-// ✅ Restaurar imagen por defecto — VA ANTES que PUT /:id
+//  Restaurar imagen por defecto — VA ANTES que PUT /:id
 router.patch(
   '/:id/restore-image',
   verifyToken,
@@ -64,7 +64,7 @@ router.patch(
   productoController.restoreDefaultImage
 );
 
-// ✅ Alias con PUT para compatibilidad
+// Alias con PUT para compatibilidad
 router.put(
   '/:id/restore-image',
   verifyToken,
@@ -72,7 +72,7 @@ router.put(
   productoController.restoreDefaultImage
 );
 
-// ✅ Actualizar producto completo (con o sin imagen)
+//  Actualizar producto completo (con o sin imagen)
 router.put(
   '/:id',
   verifyToken,
@@ -82,7 +82,7 @@ router.put(
   productoController.update
 );
 
-// ✅ Eliminar producto
+//  Eliminar producto
 router.delete(
   '/:id',
   verifyToken,
@@ -91,7 +91,7 @@ router.delete(
 );
 
 // ============================================
-// ⚠️ RUTAS CON PARÁMETRO AL FINAL (catch-all)
+//  RUTAS CON PARÁMETRO AL FINAL (catch-all)
 // ============================================
 router.get('/:id', productoController.getById);
 

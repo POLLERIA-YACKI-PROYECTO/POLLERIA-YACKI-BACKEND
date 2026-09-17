@@ -50,7 +50,7 @@ describe('Auth Middleware', () => {
       expect(mockReq.userRol).toBe('admin');
       expect(mockReq.userDni).toBe('12345678');
       
-      // ✅ Verificar propiedades específicas (JWT agrega iat y exp automáticamente)
+      //  Verificar propiedades específicas (JWT agrega iat y exp automáticamente)
       expect(mockReq.user).toHaveProperty('id', 1);
       expect(mockReq.user).toHaveProperty('dni', '12345678');
       expect(mockReq.user).toHaveProperty('rol', 'admin');
@@ -139,7 +139,7 @@ describe('Auth Middleware', () => {
       verifyToken(mockReq, mockRes, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(401);
-      // ✅ El middleware traduce el código a INVALID_SIGNATURE
+      //  El middleware traduce el código a INVALID_SIGNATURE
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
           success: false,
@@ -158,7 +158,7 @@ describe('Auth Middleware', () => {
       verifyToken(mockReq, mockRes, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(401);
-      // ✅ El middleware traduce el código a TOKEN_EXPIRED
+      //  El middleware traduce el código a TOKEN_EXPIRED
       expect(mockRes.json).toHaveBeenCalledWith(
         expect.objectContaining({
           success: false,
@@ -175,7 +175,7 @@ describe('Auth Middleware', () => {
       verifyToken(mockReq, mockRes, mockNext);
 
       expect(mockRes.status).toHaveBeenCalledWith(401);
-      // ✅ Verificar que devuelve un error 401 (cualquier formato)
+      //  Verificar que devuelve un error 401 (cualquier formato)
       expect(mockRes.json).toHaveBeenCalled();
       const respuesta = mockRes.json.mock.calls[0][0];
       expect(respuesta.success).toBe(false);

@@ -4,10 +4,10 @@ const router = express.Router();
 const historialController = require('../controllers/historial.controller');
 const { verifyToken } = require('../middleware/auth');
 
-// ✅ Ruta unificada (una sola petición trae todo)
+//  Ruta unificada (una sola petición trae todo)
 router.get('/resumen-completo', verifyToken, historialController.resumenCompleto);
 
-// ✅ NUEVO: Detalle de compras de un cliente (DEBE IR ANTES que /:id genéricos)
+// NUEVO: Detalle de compras de un cliente (DEBE IR ANTES que /:id genéricos)
 router.get('/cliente/:clienteId/compras', verifyToken, historialController.getComprasByCliente);
 
 // Rutas individuales

@@ -51,7 +51,7 @@ router.get('/:id', verifyToken, pedidoClienteController.getById);
 router.post('/', verifyToken, pedidoClienteController.create);
 
 // ============================================
-// ✅ SUBIR COMPROBANTE
+//  SUBIR COMPROBANTE
 // ============================================
 router.post(
   '/:id/comprobante',
@@ -61,7 +61,7 @@ router.post(
 );
 
 // ============================================
-// ✅ CONFIRMAR PAGO (SOLO ADMIN)
+// CONFIRMAR PAGO (SOLO ADMIN)
 // ============================================
 router.put(
   '/:id/confirmar-pago',
@@ -71,7 +71,7 @@ router.put(
 );
 
 // ============================================
-// ✅ RECHAZAR PAGO (SOLO ADMIN)
+// RECHAZAR PAGO (SOLO ADMIN)
 // ============================================
 router.put(
   '/:id/rechazar-pago',

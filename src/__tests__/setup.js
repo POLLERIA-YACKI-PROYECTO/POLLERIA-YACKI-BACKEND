@@ -3,7 +3,7 @@
 // SETUP GLOBAL DE JEST (setupFilesAfterEach)
 // ============================================
 // Este archivo se ejecuta DESPUÉS del framework.
-// ✅ Aquí SÍ puedes usar afterEach, describe, it, expect
+//  Aquí SÍ puedes usar afterEach, describe, it, expect
 
 jest.setTimeout(30000);
 

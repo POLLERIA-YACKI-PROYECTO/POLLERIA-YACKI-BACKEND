@@ -17,7 +17,7 @@ router.get('/', verifyToken, isAdmin, configController.getAll);
 router.put('/', verifyToken, isAdmin, configController.update);
 router.post('/', verifyToken, isAdmin, configController.create);
 
-// ✅ Subir imagen (QR)
+//  Subir imagen (QR)
 router.post(
   '/imagen',
   verifyToken,
@@ -27,7 +27,7 @@ router.post(
   configController.subirImagen
 );
 
-// ✅ Eliminar imagen
+//  Eliminar imagen
 router.delete(
   '/imagen/:clave',
   verifyToken,
@@ -35,7 +35,7 @@ router.delete(
   configController.eliminarImagen
 );
 
-// ⚠️ Rutas con parámetro AL FINAL
+//  Rutas con parámetro AL FINAL
 router.get('/:clave', verifyToken, isAdmin, configController.getByClave);
 router.put('/:clave', verifyToken, isAdmin, configController.update);
 router.delete('/:clave', verifyToken, isAdmin, configController.delete);

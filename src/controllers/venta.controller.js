@@ -3,7 +3,7 @@ const Venta = require('../models/Venta');
 const db = require('../config/database');
 
 // ============================================
-// ✅ GET ALL - Combina ventas + pedidos web SIN duplicados
+// GET ALL - Combina ventas + pedidos web SIN duplicados
 // ============================================
 exports.getAll = async (req, res) => {
   try {
@@ -40,7 +40,7 @@ exports.getAll = async (req, res) => {
 };
 
 // ============================================
-// ✅ Pedidos web pendientes
+// Pedidos web pendientes
 // ============================================
 exports.getPedidosWebPendientes = async (req, res) => {
   try {

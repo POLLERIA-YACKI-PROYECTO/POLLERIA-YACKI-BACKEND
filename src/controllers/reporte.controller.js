@@ -341,7 +341,7 @@ exports.getReporteVentasPorMesero = async (req, res) => {
 };
 
 // ============================================
-// ✅ NUEVO: REPORTE SEMANAL
+//  NUEVO: REPORTE SEMANAL
 // Agrupa las ventas por semana y muestra desglose por día
 // ============================================
 exports.getReporteSemanal = async (req, res) => {

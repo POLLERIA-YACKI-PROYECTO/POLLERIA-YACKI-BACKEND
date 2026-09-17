@@ -2,11 +2,11 @@
 // ============================================
 // SETUP GLOBAL DE JEST (setupFiles)
 // ============================================
-// ⚠️ Este archivo se ejecuta ANTES del framework de testing.
+//  Este archivo se ejecuta ANTES del framework de testing.
 // Solo puede usar jest.mock(), process.env, etc.
 // NO puede usar afterEach, describe, it, expect.
 
-// ✅ RUTA RELATIVA CORRECTA: desde src/__tests__/ hasta src/config/
+//  RUTA RELATIVA CORRECTA: desde src/__tests__/ hasta src/config/
 jest.mock('../config/multer', () => {
   const multer = require('multer');
   const mockUpload = multer({ storage: multer.memoryStorage() });
@@ -36,7 +36,7 @@ jest.mock('../config/default-image', () => ({
   ensureDefaultImage: jest.fn()
 }));
 
-// ✅ Variables de entorno
+// Variables de entorno
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'polleria-yacky-secret-key-2026';
 process.env.DB_HOST = 'localhost';

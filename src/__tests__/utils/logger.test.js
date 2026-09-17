@@ -1,6 +1,6 @@
 // src/__tests__/utils/logger.test.js
 
-// ✅ Mockear fs AL PRINCIPIO (antes de importar logger)
+//  Mockear fs AL PRINCIPIO (antes de importar logger)
 jest.mock('fs', () => ({
   existsSync: jest.fn(() => true),
   mkdirSync: jest.fn(),
@@ -9,13 +9,13 @@ jest.mock('fs', () => ({
 
 const fs = require('fs');
 
-// ✅ Importar logger DESPUÉS del mock
+//  Importar logger DESPUÉS del mock
 const { logger } = require('../../utils/logger');
 
 describe('Logger', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // ✅ Asegurar que existsSync retorne true
+    // Asegurar que existsSync retorne true
     fs.existsSync.mockReturnValue(true);
   });
 
