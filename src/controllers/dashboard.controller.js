@@ -4,14 +4,15 @@ const db = require('../config/database');
 exports.getResumenUnificado = async (req, res) => {
   try {
     // ============================================
-    // 1. VENTAS TRADICIONALES
+    // 1. VENTAS REALES (incluye las de origen 'pedido_web')
+    //    Ya NO forzamos pedido_cliente_id = NULL
     // ============================================
     const [ventas] = await db.query(`
       SELECT 
         'venta' AS origen,
         v.id,
         v.id AS venta_id,
-        NULL AS pedido_cliente_id,
+        v.pedido_cliente_id,                       -- ✅ REAL, no NULL
         v.cliente_nombre,
         v.total,
         v.tipo_entrega,
@@ -25,10 +26,12 @@ exports.getResumenUnificado = async (req, res) => {
       LEFT JOIN usuarios u ON v.usuario_id = u.id
       WHERE v.deleted_at IS NULL
         AND v.estado = 'completada'
+      ORDER BY v.fecha_venta DESC
     `);
 
     // ============================================
-    // 2. PEDIDOS WEB CONFIRMADOS
+    // 2. PEDIDOS WEB CONFIRMADOS SIN VENTA VINCULADA
+    //    ✅ Con NOT EXISTS para no duplicar
     // ============================================
     const [pedidosWeb] = await db.query(`
       SELECT 
@@ -49,32 +52,60 @@ exports.getResumenUnificado = async (req, res) => {
       WHERE pc.deleted_at IS NULL
         AND pc.pagado = TRUE
         AND pc.fecha_confirmacion IS NOT NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM ventas v2
+          WHERE v2.pedido_cliente_id = pc.id
+            AND v2.deleted_at IS NULL
+        )
+      ORDER BY pc.fecha_confirmacion DESC
     `);
 
     // ============================================
-    // 3. UNIFICAR (evitar duplicados)
+    // 3. UNIFICAR (sin duplicados reales)
     // ============================================
-    // Las ventas creadas automáticamente tienen pedido_id = NULL (no vinculado)
-    // Los pedidos web confirmados generan una venta con pedido_id = NULL
-    // Para evitar duplicados: contamos solo las VENTAS + los PEDIDOS WEB sin venta asociada
-    
     const todas = [
       ...ventas.map(v => ({ ...v, total: parseFloat(v.total) || 0 })),
       ...pedidosWeb.map(p => ({ ...p, total: parseFloat(p.total) || 0 }))
     ];
 
+    // Deduplicación de seguridad por pedido_cliente_id
+    // (por si alguna venta antigua tiene pedido_cliente_id = NULL pero es web)
+    const mapa = new Map();
+    todas.forEach(v => {
+      const pedidoClienteId = 
+        v.pedido_cliente_id !== null && 
+        v.pedido_cliente_id !== undefined && 
+        v.pedido_cliente_id !== ''
+          ? Number(v.pedido_cliente_id)
+          : null;
+
+      const clave = pedidoClienteId !== null
+        ? `PC-${pedidoClienteId}`
+        : `V-${v.id}`;
+
+      if (!mapa.has(clave)) {
+        mapa.set(clave, v);
+      } else {
+        // Si ya existe, preferir la VENTA (origen='venta') sobre el pedido web
+        const existente = mapa.get(clave);
+        if (existente.origen === 'pedido_web' && v.origen === 'venta') {
+          mapa.set(clave, v);
+        }
+      }
+    });
+
+    const unificadas = Array.from(mapa.values());
+
     // ============================================
     // 4. CALCULAR TOTALES
     // ============================================
-    const totalRecaudado = todas.reduce((sum, v) => sum + v.total, 0);
-    const totalVentas = todas.length;
+    const totalRecaudado = unificadas.reduce((sum, v) => sum + v.total, 0);
+    const totalVentas = unificadas.length;
 
-    // Local
-    const local = todas.filter(v =>
+    const local = unificadas.filter(v =>
       v.tipo_entrega === 'local' || v.tipo_entrega === 'paraLlevar'
     );
-    // Motorizado
-    const delivery = todas.filter(v =>
+    const delivery = unificadas.filter(v =>
       v.tipo_entrega === 'delivery' || v.tipo_entrega === 'motorizada'
     );
 
@@ -85,32 +116,42 @@ exports.getResumenUnificado = async (req, res) => {
     const hoy = new Date();
     const hoyStr = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
 
-    const ventasHoy = todas.filter(v => {
+    const ventasHoy = unificadas.filter(v => {
       const fecha = String(v.fecha || v.created_at).substring(0, 10);
       return fecha === hoyStr;
     });
 
     const recaudadoHoy = ventasHoy.reduce((sum, v) => sum + v.total, 0);
 
-    // Ventas recientes
-    const recientes = [...todas]
+    // ============================================
+    // 5. VENTAS RECIENTES (10 últimas)
+    // ============================================
+    const recientes = [...unificadas]
       .sort((a, b) => {
         const fechaA = new Date(a.fecha || a.created_at).getTime();
         const fechaB = new Date(b.fecha || b.created_at).getTime();
         return fechaB - fechaA;
       })
       .slice(0, 10)
-      .map(v => ({
-        ...v,
-        // ID único compuesto
-        id_unico: v.origen === 'venta' 
-          ? `V-${v.id}` 
-          : `PC-${v.id}`,
-        // Nombre de quien atendió
-        atendio: v.origen === 'venta' 
-          ? (v.usuario_nombre || 'Mesero')
-          : 'Cliente Web'
-      }));
+      .map(v => {
+        const pedidoClienteId =
+          v.pedido_cliente_id !== null &&
+          v.pedido_cliente_id !== undefined &&
+          v.pedido_cliente_id !== ''
+            ? Number(v.pedido_cliente_id)
+            : null;
+
+        return {
+          ...v,
+          // id_unico coherente: PC-{pedido_cliente_id} si es web, V-{id} si es mesero
+          id_unico: pedidoClienteId !== null
+            ? `PC-${pedidoClienteId}`
+            : `V-${v.id}`,
+          atendio: v.origen === 'venta'
+            ? (v.usuario_nombre || 'Mesero')
+            : 'Cliente Web'
+        };
+      });
 
     res.json({
       success: true,

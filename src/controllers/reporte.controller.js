@@ -66,19 +66,18 @@ exports.getReporteVentas = async (req, res) => {
     // Por usuario
     const porUsuario = {};
     ventas.forEach(v => {
-      if (v.usuario_id) {
-        if (!porUsuario[v.usuario_id]) {
-          porUsuario[v.usuario_id] = {
-            usuario_id: v.usuario_id,
-            usuario_nombre: v.usuario_nombre || 'Desconocido',
-            rol: v.usuario_rol || 'desconocido',
-            total: 0,
-            cantidad: 0
-          };
-        }
-        porUsuario[v.usuario_id].total += parseFloat(v.total || 0);
-        porUsuario[v.usuario_id].cantidad += 1;
+      const clave = v.usuario_id || 'web';
+      if (!porUsuario[clave]) {
+        porUsuario[clave] = {
+          usuario_id: v.usuario_id,
+          usuario_nombre: v.usuario_nombre || 'Cliente Web',
+          rol: v.usuario_rol || (v.origen === 'pedido_web' ? 'cliente_web' : 'desconocido'),
+          total: 0,
+          cantidad: 0
+        };
       }
+      porUsuario[clave].total += parseFloat(v.total || 0);
+      porUsuario[clave].cantidad += 1;
     });
 
     // Top productos
@@ -146,21 +145,20 @@ exports.getReporteDiarioCajero = async (req, res) => {
 
     const porUsuario = {};
     ventas.forEach(v => {
-      if (v.usuario_id) {
-        if (!porUsuario[v.usuario_id]) {
-          porUsuario[v.usuario_id] = {
-            usuario_id: v.usuario_id,
-            usuario_nombre: v.usuario_nombre || 'Desconocido',
-            rol: v.usuario_rol || 'desconocido',
-            total: 0,
-            cantidad: 0,
-            ventas: []
-          };
-        }
-        porUsuario[v.usuario_id].total += parseFloat(v.total || 0);
-        porUsuario[v.usuario_id].cantidad += 1;
-        porUsuario[v.usuario_id].ventas.push(v);
+      const clave = v.usuario_id || 'web';
+      if (!porUsuario[clave]) {
+        porUsuario[clave] = {
+          usuario_id: v.usuario_id,
+          usuario_nombre: v.usuario_nombre || 'Cliente Web',
+          rol: v.usuario_rol || (v.origen === 'pedido_web' ? 'cliente_web' : 'desconocido'),
+          total: 0,
+          cantidad: 0,
+          ventas: []
+        };
       }
+      porUsuario[clave].total += parseFloat(v.total || 0);
+      porUsuario[clave].cantidad += 1;
+      porUsuario[clave].ventas.push(v);
     });
 
     res.json({
@@ -303,23 +301,22 @@ exports.getReporteVentasPorMesero = async (req, res) => {
       }
     });
 
-    // Agrupar por usuario
+    // Agrupar por usuario (los pedidos web van a "Cliente Web")
     const porUsuario = {};
     ventas.forEach(v => {
-      if (v.usuario_id) {
-        if (!porUsuario[v.usuario_id]) {
-          porUsuario[v.usuario_id] = {
-            usuario_id: v.usuario_id,
-            usuario_nombre:
-              v.usuario_nombre_completo || v.usuario_nombre || 'Desconocido',
-            rol: v.usuario_rol || 'mesero',
-            total: 0,
-            cantidad: 0
-          };
-        }
-        porUsuario[v.usuario_id].total += parseFloat(v.total || 0);
-        porUsuario[v.usuario_id].cantidad += 1;
+      const clave = v.usuario_id || 'web';
+      if (!porUsuario[clave]) {
+        porUsuario[clave] = {
+          usuario_id: v.usuario_id,
+          usuario_nombre:
+            v.usuario_nombre_completo || v.usuario_nombre || 'Cliente Web',
+          rol: v.usuario_rol || (v.origen === 'pedido_web' ? 'cliente_web' : 'mesero'),
+          total: 0,
+          cantidad: 0
+        };
       }
+      porUsuario[clave].total += parseFloat(v.total || 0);
+      porUsuario[clave].cantidad += 1;
     });
 
     res.json({
@@ -341,8 +338,7 @@ exports.getReporteVentasPorMesero = async (req, res) => {
 };
 
 // ============================================
-//  NUEVO: REPORTE SEMANAL
-// Agrupa las ventas por semana y muestra desglose por día
+// REPORTE SEMANAL
 // ============================================
 exports.getReporteSemanal = async (req, res) => {
   try {
@@ -360,7 +356,6 @@ exports.getReporteSemanal = async (req, res) => {
 
     const ventas = await Venta.findByFecha(fechaInicio, fechaFin);
 
-    // Parsear items
     ventas.forEach(v => {
       if (typeof v.items === 'string') {
         try {
@@ -371,7 +366,6 @@ exports.getReporteSemanal = async (req, res) => {
       }
     });
 
-    // Función auxiliar: obtener lunes de la semana
     const obtenerLunes = (fecha) => {
       const d = new Date(fecha);
       const dia = d.getDay();
@@ -381,7 +375,6 @@ exports.getReporteSemanal = async (req, res) => {
       return d;
     };
 
-    // Función auxiliar: formatear fecha
     const formatearFecha = (fecha) => {
       const d = new Date(fecha);
       const dia = String(d.getDate()).padStart(2, '0');
@@ -390,7 +383,6 @@ exports.getReporteSemanal = async (req, res) => {
       return `${dia}/${mes}/${anio}`;
     };
 
-    // Función auxiliar: obtener número de semana ISO
     const obtenerNumeroSemana = (fecha) => {
       const d = new Date(Date.UTC(fecha.getFullYear(), fecha.getMonth(), fecha.getDate()));
       const dia = d.getUTCDay() || 7;
@@ -399,7 +391,6 @@ exports.getReporteSemanal = async (req, res) => {
       return Math.ceil(((d - inicioAnio) / 86400000 + 1) / 7);
     };
 
-    // Agrupar por semana
     const semanasMap = new Map();
 
     ventas.forEach(venta => {
@@ -410,7 +401,6 @@ exports.getReporteSemanal = async (req, res) => {
       const claveSemana = `${lunes.getFullYear()}-${String(lunes.getMonth() + 1).padStart(2, '0')}-${String(lunes.getDate()).padStart(2, '0')}`;
 
       if (!semanasMap.has(claveSemana)) {
-        // Crear los 7 días de la semana
         const dias = [];
         const nombresDias = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
         const hoy = new Date();
@@ -453,7 +443,6 @@ exports.getReporteSemanal = async (req, res) => {
       const tipo = String(venta.tipo_entrega || venta.tipo || 'local').toLowerCase();
       const esDelivery = tipo === 'delivery' || tipo === 'motorizada';
 
-      // Sumar a la semana
       if (esDelivery) {
         semana.ventasMotorizado++;
         semana.totalMotorizado += total;
@@ -463,8 +452,7 @@ exports.getReporteSemanal = async (req, res) => {
       }
       semana.total += total;
 
-      // Sumar al día correspondiente
-      const diaSemana = fechaVenta.getDay(); // 0=Dom, 1=Lun...
+      const diaSemana = fechaVenta.getDay();
       const indiceDia = diaSemana === 0 ? 6 : diaSemana - 1;
       if (semana.dias[indiceDia]) {
         semana.dias[indiceDia].ventas++;
@@ -472,7 +460,6 @@ exports.getReporteSemanal = async (req, res) => {
       }
     });
 
-    // Convertir a array ordenado
     const semanas = Array.from(semanasMap.values())
       .sort((a, b) => a._fechaOrden - b._fechaOrden)
       .map((s, idx) => {

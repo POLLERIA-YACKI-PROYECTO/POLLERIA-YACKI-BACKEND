@@ -3,18 +3,18 @@ const db = require('../config/database');
 
 class Venta {
   static async create(venta) {
-    const { 
+    const {
       pedido_id,
       pedido_cliente_id,
-      usuario_id, 
+      usuario_id,
       mesa_id,
       cliente_id,
       cliente_nombre,
-      items, 
+      items,
       subtotal,
       igv,
       descuento,
-      total, 
+      total,
       metodo_pago,
       numero_operacion,
       tipo_entrega,
@@ -22,7 +22,7 @@ class Venta {
       estado,
       observaciones
     } = venta;
-    
+
     const [result] = await db.query(
       `INSERT INTO ventas 
        (pedido_id, pedido_cliente_id, usuario_id, mesa_id, cliente_id, cliente_nombre, 
@@ -53,17 +53,20 @@ class Venta {
   }
 
   /**
-   *  Buscar todas las ventas (SIN duplicados)
+   * TODAS las ventas reales. Incluye las de origen 'pedido_web'
+   * (esas son las que ya tienen pedido_cliente_id vinculado).
    */
   static async findAll() {
     const [rows] = await db.query(`
       SELECT 
         v.*,
         COALESCE(v.origen, 'mesero') AS origen,
-        u.nombre as usuario_nombre, 
-        u.apellido as usuario_apellido,
-        u.rol as usuario_rol,
-        c.nombre as cliente_nombre_real
+        u.nombre AS usuario_nombre,
+        u.apellido AS usuario_apellido,
+        u.rol AS usuario_rol,
+        CONCAT(u.nombre, ' ', COALESCE(u.apellido, '')) AS usuario_nombre_completo,
+        c.nombre AS cliente_nombre_real,
+        c.apellido AS cliente_apellido_real
       FROM ventas v
       LEFT JOIN usuarios u ON v.usuario_id = u.id
       LEFT JOIN clientes c ON v.cliente_id = c.id
@@ -115,66 +118,162 @@ class Venta {
     return rows;
   }
 
+  /**
+   * UNIFICADO: ventas reales + pedidos web SIN venta vinculada.
+   * NO duplica: si el pedido web ya tiene venta, solo se devuelve la venta.
+   */
   static async findByFecha(fechaInicio, fechaFin) {
     const [rows] = await db.query(`
-      SELECT v.*, 
-             u.nombre as usuario_nombre, 
-             u.rol as usuario_rol,
-             c.nombre as cliente_nombre_real
+      SELECT 
+        v.id,
+        v.pedido_cliente_id,
+        v.usuario_id,
+        v.mesa_id,
+        v.cliente_id,
+        v.cliente_nombre,
+        v.items,
+        v.subtotal,
+        v.igv,
+        v.descuento,
+        v.total,
+        v.metodo_pago,
+        v.numero_operacion,
+        v.tipo_entrega,
+        v.estado,
+        v.observaciones,
+        v.fecha_venta,
+        v.created_at,
+        COALESCE(v.origen, 'mesero') AS origen,
+        u.nombre AS usuario_nombre,
+        u.rol AS usuario_rol,
+        CONCAT(u.nombre, ' ', COALESCE(u.apellido, '')) AS usuario_nombre_completo,
+        c.nombre AS cliente_nombre_real
       FROM ventas v
       LEFT JOIN usuarios u ON v.usuario_id = u.id
       LEFT JOIN clientes c ON v.cliente_id = c.id
       WHERE DATE(v.fecha_venta) BETWEEN ? AND ?
         AND v.estado = 'completada'
         AND v.deleted_at IS NULL
-      ORDER BY v.fecha_venta DESC
-    `, [fechaInicio, fechaFin]);
+
+      UNION ALL
+
+      SELECT
+        pc.id,
+        pc.id AS pedido_cliente_id,
+        NULL AS usuario_id,
+        NULL AS mesa_id,
+        pc.cliente_id,
+        pc.cliente_nombre,
+        pc.items,
+        pc.subtotal,
+        pc.igv,
+        0 AS descuento,
+        pc.total,
+        pc.metodo_pago,
+        pc.numero_operacion,
+        pc.tipo_entrega,
+        'completada' AS estado,
+        pc.observaciones,
+        pc.fecha_confirmacion AS fecha_venta,
+        pc.created_at,
+        'pedido_web' AS origen,
+        'Cliente Web' AS usuario_nombre,
+        NULL AS usuario_rol,
+        'Cliente Web' AS usuario_nombre_completo,
+        c.nombre AS cliente_nombre_real
+      FROM pedidos_cliente pc
+      LEFT JOIN clientes c ON pc.cliente_id = c.id
+      WHERE DATE(pc.fecha_confirmacion) BETWEEN ? AND ?
+        AND pc.pagado = TRUE
+        AND pc.deleted_at IS NULL
+        AND pc.fecha_confirmacion IS NOT NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM ventas v2
+          WHERE v2.pedido_cliente_id = pc.id 
+            AND v2.deleted_at IS NULL
+        )
+
+      ORDER BY fecha_venta DESC
+    `, [fechaInicio, fechaFin, fechaInicio, fechaFin]);
     return rows;
   }
 
+  /**
+   * Resumen diario UNIFICADO.
+   */
   static async getResumenDiario(fecha) {
     const [rows] = await db.query(`
       SELECT 
-        COUNT(*) as total_ventas,
-        SUM(total) as total_recaudado,
-        AVG(total) as promedio,
-        SUM(CASE WHEN metodo_pago = 'efectivo' THEN total ELSE 0 END) as total_efectivo,
-        SUM(CASE WHEN metodo_pago = 'tarjeta' THEN total ELSE 0 END) as total_tarjeta,
-        SUM(CASE WHEN metodo_pago = 'yape' THEN total ELSE 0 END) as total_yape,
-        SUM(CASE WHEN metodo_pago = 'plin' THEN total ELSE 0 END) as total_plin,
-        SUM(CASE WHEN metodo_pago = 'transferencia' THEN total ELSE 0 END) as total_transferencia
-      FROM ventas 
-      WHERE DATE(fecha_venta) = ?
-        AND estado = 'completada'
-        AND deleted_at IS NULL
-    `, [fecha]);
+        COUNT(*) AS total_ventas,
+        SUM(total) AS total_recaudado,
+        AVG(total) AS promedio,
+        SUM(CASE WHEN metodo_pago = 'efectivo' THEN total ELSE 0 END) AS total_efectivo,
+        SUM(CASE WHEN metodo_pago = 'tarjeta' THEN total ELSE 0 END) AS total_tarjeta,
+        SUM(CASE WHEN metodo_pago = 'yape' THEN total ELSE 0 END) AS total_yape,
+        SUM(CASE WHEN metodo_pago = 'plin' THEN total ELSE 0 END) AS total_plin,
+        SUM(CASE WHEN metodo_pago = 'transferencia' THEN total ELSE 0 END) AS total_transferencia
+      FROM (
+        SELECT total, metodo_pago FROM ventas
+        WHERE DATE(fecha_venta) = ? 
+          AND estado = 'completada' 
+          AND deleted_at IS NULL
+
+        UNION ALL
+
+        SELECT pc.total, pc.metodo_pago FROM pedidos_cliente pc
+        WHERE DATE(pc.fecha_confirmacion) = ?
+          AND pc.pagado = TRUE
+          AND pc.deleted_at IS NULL
+          AND pc.fecha_confirmacion IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM ventas v 
+            WHERE v.pedido_cliente_id = pc.id 
+              AND v.deleted_at IS NULL
+          )
+      ) AS todo
+    `, [fecha, fecha]);
     return rows[0] || { total_ventas: 0, total_recaudado: 0, promedio: 0 };
   }
 
   static async getVentasPorCliente(fechaInicio, fechaFin) {
     const [rows] = await db.query(`
       SELECT 
-        v.cliente_id,
-        v.cliente_nombre,
+        todo.cliente_id,
+        todo.cliente_nombre,
         c.nombre as nombre_real,
         COUNT(*) as total_ventas,
-        SUM(v.total) as total_gastado,
-        AVG(v.total) as promedio,
-        MAX(v.total) as compra_maxima,
-        MIN(v.total) as compra_minima
-      FROM ventas v
-      LEFT JOIN clientes c ON v.cliente_id = c.id
-      WHERE DATE(v.fecha_venta) BETWEEN ? AND ?
-        AND v.estado = 'completada'
-        AND v.deleted_at IS NULL
-      GROUP BY v.cliente_id, v.cliente_nombre, c.nombre
+        SUM(todo.total) as total_gastado,
+        AVG(todo.total) as promedio,
+        MAX(todo.total) as compra_maxima,
+        MIN(todo.total) as compra_minima
+      FROM (
+        SELECT cliente_id, cliente_nombre, total FROM ventas
+        WHERE DATE(fecha_venta) BETWEEN ? AND ?
+          AND estado = 'completada' AND deleted_at IS NULL
+
+        UNION ALL
+
+        SELECT pc.cliente_id, pc.cliente_nombre, pc.total FROM pedidos_cliente pc
+        WHERE DATE(pc.fecha_confirmacion) BETWEEN ? AND ?
+          AND pc.pagado = TRUE
+          AND pc.deleted_at IS NULL
+          AND pc.fecha_confirmacion IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM ventas v 
+            WHERE v.pedido_cliente_id = pc.id AND v.deleted_at IS NULL
+          )
+      ) AS todo
+      LEFT JOIN clientes c ON todo.cliente_id = c.id
+      GROUP BY todo.cliente_id, todo.cliente_nombre, c.nombre
       ORDER BY total_gastado DESC
-    `, [fechaInicio, fechaFin]);
+    `, [fechaInicio, fechaFin, fechaInicio, fechaFin]);
     return rows;
   }
 
   /**
-   * Pedidos web confirmados (para unificar)
+   * Pedidos web pagados SIN venta vinculada.
+   * Devuelve `id = pc.id` y `pedido_cliente_id = pc.id` para que el frontend
+   * genere `PC-{id}` correctamente.
    */
   static async findPedidosClientePagados() {
     const [rows] = await db.query(`
@@ -220,9 +319,11 @@ class Venta {
     return rows;
   }
 
-  /**
-   *  Pedidos web pendientes
-   */
+  /** Alias por compatibilidad */
+  static async findPedidosClientePagadosSinVenta() {
+    return this.findPedidosClientePagados();
+  }
+
   static async findPedidosClientePendientes() {
     const [rows] = await db.query(`
       SELECT

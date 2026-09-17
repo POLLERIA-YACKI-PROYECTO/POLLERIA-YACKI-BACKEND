@@ -7,30 +7,55 @@ const db = require('../config/database');
 // ============================================
 exports.getAll = async (req, res) => {
   try {
-    // 1. Ventas (SOLO las que NO vienen de un pedido web)
+    // 1. TODAS las ventas reales (incluye las de origen 'pedido_web')
     const ventas = await Venta.findAll();
 
-    // 2. Pedidos web confirmados (SOLO los que NO tienen venta creada)
+    // 2. Pedidos web pagados que AÚN NO tienen venta vinculada
     const pedidosWeb = await Venta.findPedidosClientePagados();
 
-    // 3. Unificar
-    const todas = [...ventas, ...pedidosWeb];
+    // 3. Excluir pedidos web cuyo id ya esté vinculado en ventas (doble seguridad)
+    const idsVentasWeb = new Set(
+      ventas
+        .filter(v => v.pedido_cliente_id !== null && v.pedido_cliente_id !== undefined)
+        .map(v => Number(v.pedido_cliente_id))
+    );
 
-    // 4. Ordenar por fecha
+    const pedidosWebFiltrados = (pedidosWeb || []).filter(
+      p => !idsVentasWeb.has(Number(p.id))
+    );
+
+    // 4. Unificar
+    const todas = [...ventas, ...pedidosWebFiltrados];
+
+    // 5. Ordenar por fecha (desc)
     todas.sort((a, b) => {
-      const fechaA = new Date(a.fecha_venta || a.created_at).getTime();
-      const fechaB = new Date(b.fecha_venta || b.created_at).getTime();
+      const fechaA = new Date(a.fecha_venta || a.created_at || 0).getTime();
+      const fechaB = new Date(b.fecha_venta || b.created_at || 0).getTime();
       return fechaB - fechaA;
     });
 
-    // 5. Parsear items
+    // 6. Parsear items y normalizar campos
     todas.forEach(v => {
       if (typeof v.items === 'string') {
         try { v.items = JSON.parse(v.items); }
         catch { v.items = []; }
       }
       if (!Array.isArray(v.items)) v.items = [];
+
+      // Normalizar pedido_cliente_id a number|null
+      if (v.pedido_cliente_id === undefined || v.pedido_cliente_id === '') {
+        v.pedido_cliente_id = null;
+      } else if (v.pedido_cliente_id !== null) {
+        v.pedido_cliente_id = Number(v.pedido_cliente_id);
+      }
+
+      // Garantizar fecha_venta para el frontend
+      if (!v.fecha_venta) {
+        v.fecha_venta = v.fecha_confirmacion || v.created_at || null;
+      }
     });
+
+    console.log(`[ventas.getAll] devueltas: ${todas.length} (ventas=${ventas.length}, pedidosWebSinVenta=${pedidosWebFiltrados.length})`);
 
     res.json(todas);
   } catch (error) {

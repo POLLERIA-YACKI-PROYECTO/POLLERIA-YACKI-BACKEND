@@ -137,6 +137,7 @@ exports.subirComprobante = async (req, res) => {
 // - Marca como pagado
 // - Crea VENTA automáticamente con origen = 'pedido_web'
 // - Vincula venta al pedido
+// - Evita duplicados reutilizando ventas huérfanas
 // ============================================
 exports.confirmarPago = async (req, res) => {
   try {
@@ -174,25 +175,58 @@ exports.confirmarPago = async (req, res) => {
       return res.status(500).json({ error: 'No se pudo confirmar el pago' });
     }
 
-    // 3. CREAR VENTA AUTOMÁTICAMENTE
+    // 3. CREAR / REUTILIZAR VENTA AUTOMÁTICAMENTE
     let ventaId = null;
     try {
       const items = typeof pedido.items === 'string'
         ? JSON.parse(pedido.items)
         : pedido.items;
 
-      // Verificar si ya existe una venta para este pedido
+      // Buscar si ya existe una venta vinculada a este pedido web
+      // O una venta huérfana que coincida (mismo cliente + total + fecha reciente)
       const [ventaExistente] = await db.query(
-        'SELECT id FROM ventas WHERE pedido_cliente_id = ? AND deleted_at IS NULL',
-        [id]
+        `SELECT id, pedido_cliente_id FROM ventas 
+         WHERE deleted_at IS NULL 
+           AND (
+             pedido_cliente_id = ?
+             OR (
+               pedido_cliente_id IS NULL
+               AND cliente_nombre = ?
+               AND total = ?
+               AND DATE(created_at) = CURDATE()
+             )
+           )
+         ORDER BY id DESC
+         LIMIT 1`,
+        [
+          id,
+          pedido.cliente_nombre || 'Cliente Web',
+          parseFloat(pedido.total) || 0
+        ]
       );
 
       if (ventaExistente.length > 0) {
         ventaId = ventaExistente[0].id;
         console.log('Ya existía una venta para este pedido:', ventaId);
+
+        // Si la venta existente tiene pedido_cliente_id en NULL, actualizarlo
+        if (ventaExistente[0].pedido_cliente_id === null) {
+          await db.query(
+            `UPDATE ventas 
+             SET pedido_cliente_id = ?, 
+                 origen = 'pedido_web',
+                 updated_at = NOW()
+             WHERE id = ? AND pedido_cliente_id IS NULL`,
+            [id, ventaId]
+          );
+          console.log('Venta huérfana actualizada con pedido_cliente_id:', id);
+        }
+
+        // Vincular el pedido web con la venta
+        await PedidoCliente.vincularVenta(id, ventaId);
+
       } else {
         // Crear nueva venta con origen = 'pedido_web'
-        // CORREGIDO: 17 columnas y 17 valores balanceados
         const [ventaResult] = await db.query(
           `INSERT INTO ventas
               (pedido_id, pedido_cliente_id, usuario_id, mesa_id, cliente_id, cliente_nombre,
