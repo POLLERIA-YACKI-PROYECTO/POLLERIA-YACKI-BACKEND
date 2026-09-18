@@ -295,7 +295,7 @@ exports.loginCliente = async (req, res) => {
       return res.status(403).json({
         success: false,
         requiereVerificacion: true,
-        message: 'Debes verificar tu correo. Revisa tu bandeja o solicita un nuevo codigo.'
+        message: 'Debes verificar tu correo. Revisa tu bandeja o la carpeta de spam, o solicita un nuevo codigo.'
       });
     }
 
@@ -349,6 +349,7 @@ exports.loginCliente = async (req, res) => {
 
 // ============================================
 // REGISTRO CLIENTE (envia codigo al correo)
+// El correo se envia en segundo plano para no bloquear la respuesta
 // ============================================
 exports.registerCliente = async (req, res) => {
   try {
@@ -376,24 +377,27 @@ exports.registerCliente = async (req, res) => {
         const codigo = generarCodigo();
         await Cliente.guardarCodigoVerificacion(existente.id, codigo);
 
-        try {
-          await emailService.enviarCodigoVerificacion({
-            to: email,
-            nombre: existente.nombre,
-            codigo
-          });
-        } catch (mailErr) {
+        // Enviar en segundo plano (no bloquea la respuesta)
+        emailService.enviarCodigoVerificacion({
+          to: email,
+          nombre: existente.nombre,
+          codigo
+        }).catch((mailErr) => {
           logger.error('Error enviando correo (reenvio): ' + mailErr.message);
-          return res.status(500).json({
-            success: false,
-            message: 'No se pudo enviar el correo. Intenta de nuevo.'
-          });
-        }
+        });
+
+        logActividad({
+          cliente_id: existente.id,
+          tipo_usuario: 'cliente',
+          accion: 'reenvio_codigo',
+          descripcion: 'Reenvio de codigo a cliente no verificado: ' + email,
+          ...getMeta(req)
+        });
 
         return res.status(200).json({
           success: true,
           requiereVerificacion: true,
-          message: 'Te reenviamos un nuevo codigo a tu correo'
+          message: 'Te reenviamos un nuevo codigo. Revisa tu correo y la carpeta de spam.'
         });
       }
 
@@ -414,21 +418,17 @@ exports.registerCliente = async (req, res) => {
     const codigo = generarCodigo();
     await Cliente.guardarCodigoVerificacion(nuevoCliente.id, codigo);
 
-    try {
-      await emailService.enviarCodigoVerificacion({
-        to: email,
-        nombre,
-        codigo
-      });
-    } catch (mailErr) {
+    // Enviar correo en segundo plano (no bloquea la respuesta)
+    emailService.enviarCodigoVerificacion({
+      to: email,
+      nombre,
+      codigo
+    }).catch((mailErr) => {
       logger.error('Error enviando codigo de verificacion: ' + mailErr.message);
-      return res.status(500).json({
-        success: false,
-        message: 'Cuenta creada pero no se pudo enviar el correo. Reintenta el reenvio.'
-      });
-    }
+    });
 
-    await logActividad({
+    // Registrar actividad en segundo plano
+    logActividad({
       cliente_id: nuevoCliente.id,
       tipo_usuario: 'cliente',
       accion: 'registro_pendiente_verificacion',
@@ -437,10 +437,11 @@ exports.registerCliente = async (req, res) => {
       ...getMeta(req)
     });
 
+    // Respuesta inmediata
     res.status(201).json({
       success: true,
       requiereVerificacion: true,
-      message: 'Codigo enviado. Revisa tu correo.'
+      message: 'Codigo enviado. Revisa tu correo y la carpeta de spam.'
     });
   } catch (error) {
     logger.error('Error en registerCliente: ' + error.message);
@@ -489,7 +490,7 @@ exports.verificarCodigoCliente = async (req, res) => {
 
     await Cliente.updateUltimoAcceso(cliente.id);
 
-    await logActividad({
+    logActividad({
       cliente_id: cliente.id,
       tipo_usuario: 'cliente',
       accion: 'email_verificado',
@@ -545,15 +546,26 @@ exports.reenviarCodigo = async (req, res) => {
     const codigo = generarCodigo();
     await Cliente.guardarCodigoVerificacion(cliente.id, codigo);
 
-    await emailService.enviarCodigoVerificacion({
+    // Enviar en segundo plano
+    emailService.enviarCodigoVerificacion({
       to: email,
       nombre: cliente.nombre,
       codigo
+    }).catch((mailErr) => {
+      logger.error('Error reenviando codigo: ' + mailErr.message);
+    });
+
+    logActividad({
+      cliente_id: cliente.id,
+      tipo_usuario: 'cliente',
+      accion: 'reenvio_codigo',
+      descripcion: 'Reenvio de codigo solicitado: ' + email,
+      ...getMeta(req)
     });
 
     res.json({
       success: true,
-      message: 'Nuevo codigo enviado'
+      message: 'Nuevo codigo enviado. Revisa tu correo y la carpeta de spam.'
     });
   } catch (error) {
     logger.error('Error en reenviarCodigo: ' + error.message);
