@@ -34,7 +34,12 @@
       "!src/config/swagger.js"
     ],
     "coverageDirectory": "coverage",
-    "coverageReporters": ["text", "lcov", "clover", "html"],
+    "coverageReporters": [
+      "text",
+      "lcov",
+      "clover",
+      "html"
+    ],
     "coverageThreshold": {
       "global": {
         "branches": 60,
@@ -43,9 +48,17 @@
         "statements": 60
       }
     },
-    "testMatch": ["**/__tests__/**/*.test.js", "**/?(*.)+(spec|test).js"],
-    "testPathIgnorePatterns": ["/node_modules/", "/coverage/"],
-    "setupFiles": ["<rootDir>/src/__tests__/jest.setup.js"],
+    "testMatch": [
+      "**/__tests__/**/*.test.js",
+      "**/?(*.)+(spec|test).js"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/coverage/"
+    ],
+    "setupFiles": [
+      "<rootDir>/src/__tests__/jest.setup.js"
+    ],
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/src/$1"
     }
@@ -66,6 +79,7 @@
     "morgan": "^1.12.0",
     "multer": "^2.3.0",
     "mysql2": "^3.24.2",
+    "nodemailer": "^10.0.10",
     "sharp": "^0.35.4",
     "swagger-jsdoc": "^6.3.0",
     "swagger-ui-express": "^5.0.1",

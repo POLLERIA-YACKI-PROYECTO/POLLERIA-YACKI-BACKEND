@@ -70,3 +70,9 @@
   "sqlMessage": "Incorrect date value: '2024-01-01T05:00:00.000Z' for column 'fecha_contratacion' at row 1",
   "sql": "UPDATE usuarios \n         SET nombre = 'Mesero', apellido = 'Sistema', dni = '11111111', rol = 'mesero', telefono = '902458938', email = 'mesero@polleriayacky.com', activo = 1, fecha_contratacion = '2024-01-01T05:00:00.000Z', salario = '2500.00' \n         WHERE id = '3' AND deleted_at IS NULL"
 }
+[ERROR] 2026-09-18T17:06:38.285Z - ❌ Error configurando transporter de correo:
+"Invalid login: 535-5.7.8 Username and Password not accepted. For more information, go to\n535 5.7.8  https://support.google.com/mail/?p=BadCredentials 5614622812f47-4cd6a86e714sm1512773b6e.16 - gsmtp"
+[ERROR] 2026-09-18T17:13:15.528Z - Error al registrar historial: Data truncated for column 'accion' at row 1
+[ERROR] 2026-09-18T17:14:26.764Z - Error al registrar historial: Data truncated for column 'accion' at row 1
+[ERROR] 2026-09-18T17:16:12.167Z - Error al registrar historial: Data truncated for column 'accion' at row 1
+[ERROR] 2026-09-18T17:17:02.877Z - Error al registrar historial: Data truncated for column 'accion' at row 1
