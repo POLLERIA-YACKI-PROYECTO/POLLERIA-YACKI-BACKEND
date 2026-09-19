@@ -2,8 +2,10 @@
 const request = require('supertest');
 const bcrypt = require('bcryptjs');
 
-jest.mock('../../models/Usuario');
+// ⚠️ NO mockear modelos aquí: ya están en jest.setup.js (global)
+// bcryptjs sí se mockea aquí porque es específico de este test
 jest.mock('bcryptjs');
+
 jest.mock('../../middleware/auth', () => ({
   verifyToken: (req, res, next) => {
     req.userId = 1;

@@ -76,3 +76,18 @@
 [ERROR] 2026-09-18T17:14:26.764Z - Error al registrar historial: Data truncated for column 'accion' at row 1
 [ERROR] 2026-09-18T17:16:12.167Z - Error al registrar historial: Data truncated for column 'accion' at row 1
 [ERROR] 2026-09-18T17:17:02.877Z - Error al registrar historial: Data truncated for column 'accion' at row 1
+[ERROR] 2026-09-19T02:09:53.885Z - Error al registrar historial: Access denied for user 'root'@'localhost' (using password: YES)
+[ERROR] 2026-09-19T02:09:53.932Z - Error al registrar historial: Access denied for user 'root'@'localhost' (using password: YES)
+[ERROR] 2026-09-19T02:09:53.962Z - Error al registrar historial: Access denied for user 'root'@'localhost' (using password: YES)
+[ERROR] 2026-09-19T02:09:53.990Z - Error al registrar historial: Access denied for user 'root'@'localhost' (using password: YES)
+[ERROR] 2026-09-19T02:09:54.009Z - Error en loginAdmin: DB Error
+[ERROR] 2026-09-19T02:09:54.045Z - Error al registrar historial: Access denied for user 'root'@'localhost' (using password: YES)
+[ERROR] 2026-09-19T02:09:54.080Z - Error al registrar historial: Access denied for user 'root'@'localhost' (using password: YES)
+[ERROR] 2026-09-19T02:20:16.763Z - Error en loginAdmin: DB Error
+[ERROR] 2026-09-19T02:39:26.460Z - Error en loginAdmin: DB Error
+[ERROR] 2026-09-19T02:44:50.667Z - Error en loginAdmin: DB Error
+[ERROR] 2026-09-19T02:46:58.878Z - Error en loginAdmin: DB Error
+[ERROR] 2026-09-19T02:47:43.667Z - Error en loginAdmin: DB Error
+[ERROR] 2026-09-19T02:50:14.741Z - Error en loginAdmin: DB Error
+[ERROR] 2026-09-19T02:53:27.447Z - Error en loginAdmin: DB Error
+[ERROR] 2026-09-19T02:54:05.810Z - Error en loginAdmin: DB Error

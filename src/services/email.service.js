@@ -18,13 +18,16 @@ const transporter = nodemailer.createTransport({
 });
 
 // Verificar conexion al iniciar (util para depurar)
-transporter.verify((err) => {
-  if (err) {
-    logger.error('Error configurando transporter de correo: ' + err.message);
-  } else {
-    logger.info('Servidor de correo listo para enviar');
-  }
-});
+// ⚠️ NO ejecutar en tests: genera open handles y logs después del teardown
+if (process.env.NODE_ENV !== 'test') {
+  transporter.verify((err) => {
+    if (err) {
+      logger.error('Error configurando transporter de correo: ' + err.message);
+    } else {
+      logger.info('Servidor de correo listo para enviar');
+    }
+  });
+}
 
 /**
  * Envia el codigo de verificacion al cliente

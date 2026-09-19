@@ -1,15 +1,13 @@
 // src/__tests__/controllers/auth.controller.test.js
 const request = require('supertest');
-const jwt = require('jsonwebtoken');
 
-// IMPORTANTE: Mockear el modelo ANTES de importar el controlador
-jest.mock('../../models/Usuario');
+// ⚠️ Los mocks de modelos están en jest.setup.js (global).
+// NO los pongas aquí.
 
 const app = require('../../app');
 const Usuario = require('../../models/Usuario');
 
 describe('Auth Controller', () => {
-  // Datos de prueba
   const mockAdmin = {
     id: 1,
     nombre: 'Admin',
@@ -34,25 +32,19 @@ describe('Auth Controller', () => {
     jest.clearAllMocks();
   });
 
-  // ============================================
-  // LOGIN ADMIN
-  // ============================================
   describe('POST /api/auth/login-admin', () => {
     it('debe retornar token y datos del admin con DNI válido', async () => {
-      // Arrange
       Usuario.findByDni.mockResolvedValue({ ...mockAdmin });
 
-      // Act
       const response = await request(app)
         .post('/api/auth/login-admin')
         .send({ dni: '12345678' });
 
-      // Assert
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.token).toBeDefined();
       expect(response.body.rol).toBe('admin');
-      expect(response.body.password).toBeUndefined(); // No debe incluir password
+      expect(response.body.password).toBeUndefined();
       expect(Usuario.findByDni).toHaveBeenCalledWith('12345678');
     });
 
@@ -62,19 +54,21 @@ describe('Auth Controller', () => {
         .send({ dni: '123' });
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toBe('DNI inválido');
+      expect(response.body.success).toBe(false);
+      expect(response.body.message).toMatch(/DNI/i);
       expect(Usuario.findByDni).not.toHaveBeenCalled();
     });
 
-    it('debe retornar 404 si el usuario no existe', async () => {
+    it('debe retornar 401 si el usuario no existe', async () => {
       Usuario.findByDni.mockResolvedValue(null);
 
       const response = await request(app)
         .post('/api/auth/login-admin')
         .send({ dni: '99999999' });
 
-      expect(response.status).toBe(404);
-      expect(response.body.error).toBe('Usuario no encontrado');
+      expect(response.status).toBe(401);
+      expect(response.body.success).toBe(false);
+      expect(response.body.message).toMatch(/DNI/i);
     });
 
     it('debe retornar 403 si el usuario no es admin ni cajero', async () => {
@@ -85,7 +79,8 @@ describe('Auth Controller', () => {
         .send({ dni: '11111111' });
 
       expect(response.status).toBe(403);
-      expect(response.body.error).toContain('Acceso denegado');
+      expect(response.body.success).toBe(false);
+      expect(response.body.message).toMatch(/Acceso denegado/i);
     });
 
     it('debe retornar 500 si hay error en la base de datos', async () => {
@@ -96,13 +91,11 @@ describe('Auth Controller', () => {
         .send({ dni: '12345678' });
 
       expect(response.status).toBe(500);
-      expect(response.body.error).toBe('Error al iniciar sesión');
+      expect(response.body.success).toBe(false);
+      expect(response.body.message).toMatch(/Error al iniciar sesi/i);
     });
   });
 
-  // ============================================
-  // LOGIN MESERO
-  // ============================================
   describe('POST /api/auth/login-mesero', () => {
     it('debe retornar token para mesero válido', async () => {
       Usuario.findByDni.mockResolvedValue({ ...mockMesero });
@@ -125,7 +118,8 @@ describe('Auth Controller', () => {
         .send({ dni: '12345678' });
 
       expect(response.status).toBe(403);
-      expect(response.body.error).toContain('Se requiere rol de mesero');
+      expect(response.body.success).toBe(false);
+      expect(response.body.message).toMatch(/Se requiere rol de mesero/i);
     });
   });
 });

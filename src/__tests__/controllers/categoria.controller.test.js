@@ -1,8 +1,7 @@
 // src/__tests__/controllers/categoria.controller.test.js
 const request = require('supertest');
 
-// Mockear el modelo
-jest.mock('../../models/Categoria');
+// ⚠️ NO mockear modelos aquí: ya están en jest.setup.js (global)
 
 const app = require('../../app');
 const Categoria = require('../../models/Categoria');
@@ -131,7 +130,7 @@ describe('Categoria Controller', () => {
       Categoria.findById
         .mockResolvedValueOnce(mockCategorias[0])  // Para verificar existencia
         .mockResolvedValueOnce({ ...mockCategorias[0], nombre: 'Actualizada' }); // Para retornar actualizada
-      
+
       Categoria.update.mockResolvedValue(true);
 
       const response = await request(app)

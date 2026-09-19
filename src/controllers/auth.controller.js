@@ -372,12 +372,10 @@ exports.registerCliente = async (req, res) => {
     const existente = await Cliente.findByEmail(email);
 
     if (existente) {
-      // Si existe pero no esta verificado, reenviamos codigo
       if (!existente.email_verificado) {
         const codigo = generarCodigo();
         await Cliente.guardarCodigoVerificacion(existente.id, codigo);
 
-        // Enviar en segundo plano (no bloquea la respuesta)
         emailService.enviarCodigoVerificacion({
           to: email,
           nombre: existente.nombre,
@@ -418,7 +416,6 @@ exports.registerCliente = async (req, res) => {
     const codigo = generarCodigo();
     await Cliente.guardarCodigoVerificacion(nuevoCliente.id, codigo);
 
-    // Enviar correo en segundo plano (no bloquea la respuesta)
     emailService.enviarCodigoVerificacion({
       to: email,
       nombre,
@@ -427,7 +424,6 @@ exports.registerCliente = async (req, res) => {
       logger.error('Error enviando codigo de verificacion: ' + mailErr.message);
     });
 
-    // Registrar actividad en segundo plano
     logActividad({
       cliente_id: nuevoCliente.id,
       tipo_usuario: 'cliente',
@@ -437,7 +433,6 @@ exports.registerCliente = async (req, res) => {
       ...getMeta(req)
     });
 
-    // Respuesta inmediata
     res.status(201).json({
       success: true,
       requiereVerificacion: true,
@@ -546,7 +541,6 @@ exports.reenviarCodigo = async (req, res) => {
     const codigo = generarCodigo();
     await Cliente.guardarCodigoVerificacion(cliente.id, codigo);
 
-    // Enviar en segundo plano
     emailService.enviarCodigoVerificacion({
       to: email,
       nombre: cliente.nombre,

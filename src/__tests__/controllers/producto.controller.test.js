@@ -1,9 +1,9 @@
 // src/__tests__/controllers/producto.controller.test.js
 const request = require('supertest');
 
-// Los mocks de multer y default-image están en jest.setup.js
+// ⚠️ NO mockear modelos aquí: ya están en jest.setup.js (global)
+// Los mocks de multer y default-image también están en jest.setup.js
 
-jest.mock('../../models/Producto');
 jest.mock('../../middleware/auth', () => ({
   verifyToken: (req, res, next) => {
     req.userId = 1;
@@ -195,16 +195,15 @@ describe('Producto Controller', () => {
   });
 
   // ============================================
-  // UPDATE IMAGE
+  // RESTORE IMAGE (PATCH)
   // ============================================
- // ============================================
   describe('PATCH /api/productos/:id/restore-image', () => {
     it('debe restaurar imagen por defecto', async () => {
       Producto.findById.mockResolvedValue({ ...mockProducto, imagen: 'custom.jpg' });
       Producto.updateImage.mockResolvedValue(true);
 
       const response = await request(app)
-        .patch('/api/productos/1/restore-image');  //Ruta correcta
+        .patch('/api/productos/1/restore-image');
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
@@ -214,14 +213,14 @@ describe('Producto Controller', () => {
       Producto.findById.mockResolvedValue(null);
 
       const response = await request(app)
-        .patch('/api/productos/999/restore-image');  // Ruta correcta
+        .patch('/api/productos/999/restore-image');
 
       expect(response.status).toBe(404);
     });
   });
 
   // ============================================
-  // RESTORE DEFAULT IMAGE
+  // RESTORE DEFAULT IMAGE (POST alias)
   // ============================================
   describe('POST /api/productos/:id/restaurar-imagen', () => {
     it('debe restaurar imagen por defecto', async () => {

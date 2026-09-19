@@ -9,19 +9,7 @@
     "test": "cross-env NODE_ENV=test jest --detectOpenHandles --forceExit",
     "test:watch": "cross-env NODE_ENV=test jest --watch --detectOpenHandles",
     "test:coverage": "cross-env NODE_ENV=test jest --coverage --detectOpenHandles --forceExit",
-    "test:verbose": "cross-env NODE_ENV=test jest --verbose --detectOpenHandles --forceExit",
-    "test:controllers": "cross-env NODE_ENV=test jest --testPathPatterns=__tests__/controllers --detectOpenHandles --forceExit",
-    "test:middleware": "cross-env NODE_ENV=test jest --testPathPatterns=__tests__/middleware --detectOpenHandles --forceExit",
-    "test:models": "cross-env NODE_ENV=test jest --testPathPatterns=__tests__/models --detectOpenHandles --forceExit",
-    "test:validations": "cross-env NODE_ENV=test jest --testPathPatterns=__tests__/validations --detectOpenHandles --forceExit",
-    "test:utils": "cross-env NODE_ENV=test jest --testPathPatterns=__tests__/utils --detectOpenHandles --forceExit",
-    "test:integration": "cross-env NODE_ENV=test jest --testPathPatterns=__tests__/integration --detectOpenHandles --forceExit",
-    "test:unit": "cross-env NODE_ENV=test jest --testPathPatterns=__tests__/unit --detectOpenHandles --forceExit",
-    "test:e2e": "cross-env NODE_ENV=test jest --testPathPatterns=__tests__/e2e --detectOpenHandles --forceExit",
-    "test:auth": "cross-env NODE_ENV=test jest --testPathPatterns=__tests__/middleware/auth.test.js --detectOpenHandles --forceExit",
-    "test:pedidos": "cross-env NODE_ENV=test jest --testPathPatterns=__tests__/controllers/pedido.controller.test.js --detectOpenHandles --forceExit",
-    "test:productos": "cross-env NODE_ENV=test jest --testPathPatterns=__tests__/controllers/producto.controller.test.js --detectOpenHandles --forceExit",
-    "test:reportes": "cross-env NODE_ENV=test jest --testPathPatterns=__tests__/controllers/reporte.controller.test.js --detectOpenHandles --forceExit"
+    "test:verbose": "cross-env NODE_ENV=test jest --verbose --detectOpenHandles --forceExit"
   },
   "jest": {
     "testEnvironment": "node",
@@ -34,12 +22,7 @@
       "!src/config/swagger.js"
     ],
     "coverageDirectory": "coverage",
-    "coverageReporters": [
-      "text",
-      "lcov",
-      "clover",
-      "html"
-    ],
+    "coverageReporters": ["text", "lcov", "clover", "html"],
     "coverageThreshold": {
       "global": {
         "branches": 60,
@@ -52,16 +35,14 @@
       "**/__tests__/**/*.test.js",
       "**/?(*.)+(spec|test).js"
     ],
-    "testPathIgnorePatterns": [
-      "/node_modules/",
-      "/coverage/"
-    ],
-    "setupFiles": [
-      "<rootDir>/src/__tests__/jest.setup.js"
-    ],
+    "testPathIgnorePatterns": ["/node_modules/", "/coverage/"],
+    "setupFiles": ["<rootDir>/src/__tests__/jest.setup.js"],
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/src/$1"
     }
+  },
+  "overrides": {
+    "iconv-lite": "^0.7.3"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -74,11 +55,12 @@
     "express-validator": "^7.3.2",
     "fs-extra": "^11.4.0",
     "helmet": "^8.3.0",
+    "iconv-lite": "^0.7.3",
     "joi": "^18.2.8",
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.12.0",
     "multer": "^2.3.0",
-    "mysql2": "^3.24.2",
+    "mysql2": "^3.24.4",
     "nodemailer": "^10.0.10",
     "sharp": "^0.35.4",
     "swagger-jsdoc": "^6.3.0",

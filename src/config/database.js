@@ -5,8 +5,11 @@ if (!process.env.DB_HOST) {
   require('dotenv').config();
 }
 
+const isTest = process.env.NODE_ENV === 'test';
+const isDev = process.env.NODE_ENV !== 'production';
+
 // ============================================
-// POOL - Forzar mínimo de conexiones
+// POOL - Configuración
 // ============================================
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
@@ -15,18 +18,18 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME || 'polleria_yacki',
   port: process.env.DB_PORT || 3306,
 
-  // CRÍTICO: Forzar que el pool abra más conexiones
+  // Pool
   waitForConnections: true,
-  connectionLimit: 20,      // máximo 20 conexiones
-  maxIdle: 20,              // mantener hasta 20 idle
-  idleTimeout: 60000,       // cerrar idle a los 60s
-  queueLimit: 0,            // sin límite de cola
+  connectionLimit: isTest ? 2 : 20,   // en tests, mínimo
+  maxIdle: isTest ? 2 : 20,
+  idleTimeout: 60000,
+  queueLimit: 0,
 
   // Timeouts
   connectTimeout: 10000,
-  acquireTimeout: 15000,    // AÑADIR: timeout para obtener conexión
+  // acquireTimeout ELIMINADO: no existe en mysql2 (era solo warning, será error)
 
-  // Keep-alive (evita conexiones muertas)
+  // Keep-alive
   enableKeepAlive: true,
   keepAliveInitialDelay: 10000,
 
@@ -50,9 +53,10 @@ const pool = mysql.createPool({
 });
 
 // ============================================
-// WARM-UP: Abrir 5 conexiones al inicio
+// WARM-UP (solo fuera de tests)
 // ============================================
 async function warmUpPool() {
+  if (isTest) return;
   console.log('[DB] Calentando pool (abriendo 5 conexiones)...');
   const connections = [];
   try {
@@ -64,7 +68,6 @@ async function warmUpPool() {
   } catch (err) {
     console.error('[DB] Error en warm-up:', err.message);
   } finally {
-    // Liberar todas las conexiones
     connections.forEach((conn) => {
       try { conn.release(); } catch (e) { /* ignore */ }
     });
@@ -72,11 +75,9 @@ async function warmUpPool() {
 }
 
 // ============================================
-// LOGS (solo si el pool se satura)
+// LOGS (solo en dev, no en test)
 // ============================================
-const isDev = process.env.NODE_ENV !== 'production';
-
-if (isDev) {
+if (isDev && !isTest) {
   pool.on('enqueue', () => {
     const queue = pool.pool?._connectionQueue?.length ?? 0;
     if (queue > 3) {
@@ -87,7 +88,6 @@ if (isDev) {
   pool.on('acquire', () => {
     const free = pool.pool?._freeConnections?.length ?? 0;
     const total = pool.pool?._allConnections?.length ?? 0;
-    // Solo loguear si el pool está saturado
     if (free === 0 && total >= 3) {
       console.warn(`[DB] Pool saturado | total:${total} free:0`);
     }
@@ -107,11 +107,14 @@ pool.on('error', (err) => {
 module.exports = pool;
 
 // ============================================
+// CONEXIÓN INICIAL (NO ejecutar en tests)
 // ============================================
-pool
-  .query('SELECT 1')
-  .then(() => {
-    console.log('[DB] Pool conectado correctamente');
-    return warmUpPool();
-  })
-  .catch((err) => console.error('[DB] Error conectando al pool:', err.message));
+if (!isTest) {
+  pool
+    .query('SELECT 1')
+    .then(() => {
+      console.log('[DB] Pool conectado correctamente');
+      return warmUpPool();
+    })
+    .catch((err) => console.error('[DB] Error conectando al pool:', err.message));
+}

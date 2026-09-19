@@ -1,8 +1,8 @@
 // src/__tests__/controllers/reporte.controller.test.js
 const request = require('supertest');
 
-jest.mock('../../models/Venta');
-jest.mock('../../models/Usuario');
+// ⚠️ NO mockear modelos aquí: ya están en jest.setup.js (global)
+
 jest.mock('../../middleware/auth', () => ({
   verifyToken: (req, res, next) => {
     req.userId = 1;
@@ -134,13 +134,6 @@ describe('Reporte Controller', () => {
   // ============================================
   // REPORTE POR CLIENTE
   // ============================================
- 
-// src/__tests__/controllers/reporte.controller.test.js
-// ... (código anterior)
-
-  // ============================================
-  // REPORTE POR CLIENTE
-  // ============================================
   describe('GET /api/reportes/por-cliente', () => {
     it('debe generar reporte por cliente', async () => {
       Venta.getVentasPorCliente.mockResolvedValue([
@@ -148,7 +141,7 @@ describe('Reporte Controller', () => {
       ]);
 
       const response = await request(app)
-        .get('/api/reportes/por-cliente')  // Funciona gracias al alias
+        .get('/api/reportes/por-cliente')
         .query({ fechaInicio: '2026-09-01', fechaFin: '2026-09-30' });
 
       expect(response.status).toBe(200);
@@ -162,8 +155,6 @@ describe('Reporte Controller', () => {
       expect(response.status).toBe(400);
     });
   });
-
-// ... (resto del código)
 
   // ============================================
   // REPORTE MOTORIZADA
