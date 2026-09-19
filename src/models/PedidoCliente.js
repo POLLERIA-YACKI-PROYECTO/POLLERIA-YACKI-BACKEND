@@ -18,10 +18,6 @@ class PedidoCliente {
   // ============================================
   // VALIDAR cliente_id
   // ============================================
-  /**
-   * Verifica que el cliente_id exista en la BD.
-   * Si no existe o es inválido, devuelve null.
-   */
   static async validarClienteId(clienteId) {
     if (clienteId === null || clienteId === undefined || clienteId === '') {
       return null;
@@ -30,7 +26,7 @@ class PedidoCliente {
     const idNum = Number(clienteId);
 
     if (!Number.isFinite(idNum) || idNum <= 0) {
-      console.warn(`cliente_id inválido: "${clienteId}" -> se usará NULL`);
+      console.warn(`cliente_id invalido: "${clienteId}" -> se usara NULL`);
       return null;
     }
 
@@ -44,7 +40,7 @@ class PedidoCliente {
         return idNum;
       }
 
-      console.warn(`Cliente con ID ${idNum} no existe en la BD -> se usará NULL`);
+      console.warn(`Cliente con ID ${idNum} no existe en la BD -> se usara NULL`);
       return null;
     } catch (err) {
       console.error('Error al validar cliente_id:', err.message);
@@ -121,7 +117,7 @@ class PedidoCliente {
   }
 
   // ============================================
-  // CREATE (con validación de cliente_id)
+  // CREATE (SIN IGV)
   // ============================================
   static async create(pedido) {
     const {
@@ -141,34 +137,35 @@ class PedidoCliente {
       observaciones
     } = pedido;
 
-    // VALIDAR cliente_id: si no existe, se guarda como NULL
     const clienteIdFinal = await this.validarClienteId(cliente_id);
 
-    // VALIDAR items
     if (!items || !Array.isArray(items) || items.length === 0) {
       throw new Error('El pedido debe tener al menos un producto');
     }
 
-    // VALIDAR datos mínimos
     if (!cliente_nombre || !String(cliente_nombre).trim()) {
       throw new Error('El nombre del cliente es requerido');
     }
 
     if (!metodo_pago) {
-      throw new Error('El método de pago es requerido');
+      throw new Error('El metodo de pago es requerido');
     }
 
     const totalNum = Number(total);
     if (!Number.isFinite(totalNum) || totalNum <= 0) {
-      throw new Error('El total del pedido es inválido');
+      throw new Error('El total del pedido es invalido');
     }
+
+    // SIN IGV: subtotal = total, igv = 0
+    const subtotalNum = totalNum;
+    const igvNum = 0;
 
     const [result] = await db.query(
       `INSERT INTO pedidos_cliente
         (cliente_id, cliente_nombre, cliente_telefono, cliente_direccion,
          cliente_referencia, items, subtotal, igv, total, tipo_entrega,
          metodo_pago, tipo_transferencia, numero_operacion, observaciones, estado, pagado)
-       VALUES (?, ?, ?, ?, ?, CAST(? AS JSON), ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', FALSE)`,
+       VALUES (?, ?, ?, ?, ?, CAST(? AS JSON), ?, 0, ?, ?, ?, ?, ?, ?, 'pendiente', FALSE)`,
       [
         clienteIdFinal,
         String(cliente_nombre).trim(),
@@ -176,8 +173,7 @@ class PedidoCliente {
         cliente_direccion ? String(cliente_direccion).trim() : null,
         cliente_referencia ? String(cliente_referencia).trim() : null,
         JSON.stringify(items),
-        Number(subtotal) || 0,
-        Number(igv) || 0,
+        subtotalNum,
         totalNum,
         tipo_entrega || 'delivery',
         metodo_pago,

@@ -61,7 +61,7 @@ exports.getPendientes = async (req, res) => {
 };
 
 // ============================================
-// CREATE
+// CREATE (SIN IGV)
 // ============================================
 exports.create = async (req, res) => {
   try {
@@ -74,10 +74,10 @@ exports.create = async (req, res) => {
       return res.status(400).json({ error: 'El pedido debe tener al menos un producto' });
     }
     if (!pedido.total || pedido.total <= 0) {
-      return res.status(400).json({ error: 'El total del pedido es inválido' });
+      return res.status(400).json({ error: 'El total del pedido es invalido' });
     }
     if (!pedido.metodo_pago) {
-      return res.status(400).json({ error: 'Debes seleccionar un método de pago' });
+      return res.status(400).json({ error: 'Debes seleccionar un metodo de pago' });
     }
     if (!pedido.cliente_nombre) {
       return res.status(400).json({ error: 'El nombre del cliente es obligatorio' });
@@ -85,6 +85,12 @@ exports.create = async (req, res) => {
 
     if (req.userId && req.userRol === 'cliente') {
       pedido.cliente_id = req.userId;
+    }
+
+    // SIN IGV: forzar subtotal = total e igv = 0
+    pedido.igv = 0;
+    if (!pedido.subtotal || pedido.subtotal !== pedido.total) {
+      pedido.subtotal = pedido.total;
     }
 
     const nuevoPedido = await PedidoCliente.create(pedido);
@@ -111,7 +117,7 @@ exports.subirComprobante = async (req, res) => {
     const { id } = req.params;
 
     if (!req.file) {
-      return res.status(400).json({ error: 'No se envió ningún archivo' });
+      return res.status(400).json({ error: 'No se envio ningun archivo' });
     }
 
     const rutaComprobante = `/uploads/comprobantes/${req.file.filename}`;
@@ -133,11 +139,7 @@ exports.subirComprobante = async (req, res) => {
 };
 
 // ============================================
-// CONFIRMAR PAGO (SOLO ADMIN)
-// - Marca como pagado
-// - Crea VENTA automáticamente con origen = 'pedido_web'
-// - Vincula venta al pedido
-// - Evita duplicados reutilizando ventas huérfanas
+// CONFIRMAR PAGO (SIN IGV)
 // ============================================
 exports.confirmarPago = async (req, res) => {
   try {
@@ -162,28 +164,23 @@ exports.confirmarPago = async (req, res) => {
       return res.status(400).json({ error: 'Este pedido ya fue confirmado' });
     }
 
-    // 1. Actualizar tipo de entrega si se especifica
     let tipoEntregaFinal = pedido.tipo_entrega || 'local';
     if (tipo_entrega && ['local', 'delivery', 'paraLlevar', 'motorizada'].includes(tipo_entrega)) {
       await PedidoCliente.actualizarTipoEntrega(id, tipo_entrega);
       tipoEntregaFinal = tipo_entrega;
     }
 
-    // 2. Confirmar pago
     const actualizado = await PedidoCliente.confirmarPago(id, adminId);
     if (!actualizado) {
       return res.status(500).json({ error: 'No se pudo confirmar el pago' });
     }
 
-    // 3. CREAR / REUTILIZAR VENTA AUTOMÁTICAMENTE
     let ventaId = null;
     try {
       const items = typeof pedido.items === 'string'
         ? JSON.parse(pedido.items)
         : pedido.items;
 
-      // Buscar si ya existe una venta vinculada a este pedido web
-      // O una venta huérfana que coincida (mismo cliente + total + fecha reciente)
       const [ventaExistente] = await db.query(
         `SELECT id, pedido_cliente_id FROM ventas 
          WHERE deleted_at IS NULL 
@@ -207,9 +204,8 @@ exports.confirmarPago = async (req, res) => {
 
       if (ventaExistente.length > 0) {
         ventaId = ventaExistente[0].id;
-        console.log('Ya existía una venta para este pedido:', ventaId);
+        console.log('Ya existia una venta para este pedido:', ventaId);
 
-        // Si la venta existente tiene pedido_cliente_id en NULL, actualizarlo
         if (ventaExistente[0].pedido_cliente_id === null) {
           await db.query(
             `UPDATE ventas 
@@ -219,14 +215,16 @@ exports.confirmarPago = async (req, res) => {
              WHERE id = ? AND pedido_cliente_id IS NULL`,
             [id, ventaId]
           );
-          console.log('Venta huérfana actualizada con pedido_cliente_id:', id);
+          console.log('Venta huerfana actualizada con pedido_cliente_id:', id);
         }
 
-        // Vincular el pedido web con la venta
         await PedidoCliente.vincularVenta(id, ventaId);
 
       } else {
-        // Crear nueva venta con origen = 'pedido_web'
+        // SIN IGV: subtotal = total, igv = 0
+        const subtotalNum = parseFloat(pedido.subtotal) || 0;
+        const totalNum = parseFloat(pedido.total) || subtotalNum;
+
         const [ventaResult] = await db.query(
           `INSERT INTO ventas
               (pedido_id, pedido_cliente_id, usuario_id, mesa_id, cliente_id, cliente_nombre,
@@ -234,26 +232,25 @@ exports.confirmarPago = async (req, res) => {
                metodo_pago, numero_operacion, tipo_entrega, origen, estado, observaciones)
            VALUES
               (NULL, ?, ?, NULL, ?, ?,
-               ?, ?, ?, 0, ?,
+               ?, ?, 0, 0, ?,
                ?, ?, ?, 'pedido_web', 'completada', ?)`,
           [
-            id,                                        // pedido_cliente_id
-            adminId,                                   // usuario_id
-            pedido.cliente_id || null,                 // cliente_id
-            pedido.cliente_nombre || 'Cliente Web',    // cliente_nombre
-            JSON.stringify(items),                     // items
-            parseFloat(pedido.subtotal) || 0,          // subtotal
-            parseFloat(pedido.igv) || 0,               // igv
-            parseFloat(pedido.total) || 0,             // total
-            pedido.metodo_pago || 'efectivo',          // metodo_pago
-            pedido.numero_operacion || null,           // numero_operacion
-            tipoEntregaFinal,                          // tipo_entrega
-            pedido.observaciones || null               // observaciones
+            id,
+            adminId,
+            pedido.cliente_id || null,
+            pedido.cliente_nombre || 'Cliente Web',
+            JSON.stringify(items),
+            subtotalNum,
+            totalNum,
+            pedido.metodo_pago || 'efectivo',
+            pedido.numero_operacion || null,
+            tipoEntregaFinal,
+            pedido.observaciones || null
           ]
         );
 
         ventaId = ventaResult.insertId;
-        console.log('Venta creada automáticamente con ID:', ventaId);
+        console.log('Venta creada automaticamente con ID:', ventaId);
 
         await PedidoCliente.vincularVenta(id, ventaId);
       }
@@ -261,10 +258,8 @@ exports.confirmarPago = async (req, res) => {
       console.error('Error al crear venta:', ventaError);
       console.error('SQL Message:', ventaError.sqlMessage);
       console.error('SQL Code:', ventaError.code);
-      // No lanzamos error para que el pago ya confirmado no se pierda
     }
 
-    // 4. Registrar en historial
     try {
       await HistorialActividad.registrar({
         usuario_id: adminId,
@@ -305,7 +300,7 @@ exports.confirmarPago = async (req, res) => {
 };
 
 // ============================================
-// RECHAZAR PAGO (SOLO ADMIN)
+// RECHAZAR PAGO
 // ============================================
 exports.rechazarPago = async (req, res) => {
   try {
@@ -351,7 +346,7 @@ exports.updateEstado = async (req, res) => {
 
     const estadosValidos = ['pendiente', 'preparando', 'listo', 'entregado', 'cancelado'];
     if (!estadosValidos.includes(estado)) {
-      return res.status(400).json({ error: 'Estado inválido' });
+      return res.status(400).json({ error: 'Estado invalido' });
     }
 
     const actualizado = await PedidoCliente.updateEstado(id, estado);

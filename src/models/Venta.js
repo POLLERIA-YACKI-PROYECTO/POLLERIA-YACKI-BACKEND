@@ -23,12 +23,17 @@ class Venta {
       observaciones
     } = venta;
 
+    // SIN IGV: subtotal = total, igv = 0
+    const totalNum = Number(total) || 0;
+    const subtotalNum = totalNum;
+    const igvNum = 0;
+
     const [result] = await db.query(
       `INSERT INTO ventas 
        (pedido_id, pedido_cliente_id, usuario_id, mesa_id, cliente_id, cliente_nombre, 
         items, subtotal, igv, descuento, total, metodo_pago, numero_operacion, 
         tipo_entrega, origen, estado, observaciones) 
-       VALUES (?, ?, ?, ?, ?, ?, CAST(? AS JSON), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, CAST(? AS JSON), ?, 0, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         pedido_id || null,
         pedido_cliente_id || null,
@@ -37,10 +42,9 @@ class Venta {
         cliente_id || null,
         cliente_nombre || 'Cliente',
         JSON.stringify(items),
-        subtotal || 0,
-        igv || 0,
+        subtotalNum,
         descuento || 0,
-        total,
+        totalNum,
         metodo_pago,
         numero_operacion || null,
         tipo_entrega || 'local',
@@ -52,10 +56,8 @@ class Venta {
     return { id: result.insertId, ...venta };
   }
 
-  /**
-   * TODAS las ventas reales. Incluye las de origen 'pedido_web'
-   * (esas son las que ya tienen pedido_cliente_id vinculado).
-   */
+  // ... resto del modelo IGUAL (findAll, findById, findByUsuario, etc.)
+
   static async findAll() {
     const [rows] = await db.query(`
       SELECT 
@@ -118,10 +120,6 @@ class Venta {
     return rows;
   }
 
-  /**
-   * UNIFICADO: ventas reales + pedidos web SIN venta vinculada.
-   * NO duplica: si el pedido web ya tiene venta, solo se devuelve la venta.
-   */
   static async findByFecha(fechaInicio, fechaFin) {
     const [rows] = await db.query(`
       SELECT 
@@ -198,9 +196,6 @@ class Venta {
     return rows;
   }
 
-  /**
-   * Resumen diario UNIFICADO.
-   */
   static async getResumenDiario(fecha) {
     const [rows] = await db.query(`
       SELECT 
@@ -270,11 +265,6 @@ class Venta {
     return rows;
   }
 
-  /**
-   * Pedidos web pagados SIN venta vinculada.
-   * Devuelve `id = pc.id` y `pedido_cliente_id = pc.id` para que el frontend
-   * genere `PC-{id}` correctamente.
-   */
   static async findPedidosClientePagados() {
     const [rows] = await db.query(`
       SELECT
@@ -319,7 +309,6 @@ class Venta {
     return rows;
   }
 
-  /** Alias por compatibilidad */
   static async findPedidosClientePagadosSinVenta() {
     return this.findPedidosClientePagados();
   }

@@ -1,4 +1,4 @@
-// src/controllers/pedido.controller.js - COMPLETO Y CORREGIDO
+// src/controllers/pedido.controller.js
 const Pedido = require('../models/Pedido');
 const db = require('../config/database');
 const HistorialActividad = require('../models/HistorialActividad');
@@ -6,7 +6,6 @@ const HistorialActividad = require('../models/HistorialActividad');
 // ============================================
 // HELPERS
 // ============================================
-
 const logActividad = async (data) => {
   try {
     await HistorialActividad.registrar(data);
@@ -20,9 +19,6 @@ const getMeta = (req) => ({
   user_agent: req.headers['user-agent'] || null
 });
 
-/**
- * Resuelve el cliente_id automáticamente
- */
 const resolverClienteId = async (cliente_id, cliente_nombre) => {
   if (cliente_id && !isNaN(Number(cliente_id))) {
     return Number(cliente_id);
@@ -38,7 +34,7 @@ const resolverClienteId = async (cliente_id, cliente_nombre) => {
         [String(cliente_nombre).trim()]
       );
       if (rows[0]) {
-        console.log(` Cliente resuelto por nombre "${cliente_nombre}" → id ${rows[0].id}`);
+        console.log(` Cliente resuelto por nombre "${cliente_nombre}" -> id ${rows[0].id}`);
         return rows[0].id;
       }
     } catch (err) {
@@ -132,7 +128,7 @@ exports.getById = async (req, res) => {
 };
 
 // ============================================
-// CREAR PEDIDO
+// CREAR PEDIDO (SIN IGV)
 // ============================================
 exports.create = async (req, res) => {
   try {
@@ -201,17 +197,18 @@ exports.create = async (req, res) => {
     if (itemsProcesados.length === 0) {
       return res.status(400).json({
         success: false,
-        error: 'Los items del pedido no son válidos'
+        error: 'Los items del pedido no son validos'
       });
     }
 
+    // SIN IGV: subtotal = total
     let subtotal = 0;
     itemsProcesados.forEach(item => {
       subtotal += Number(item.precio) * Number(item.cantidad);
     });
 
-    const igv = subtotal * 0.18;
-    const totalFinal = total || (subtotal + igv);
+    const igv = 0;
+    const totalFinal = total || subtotal;
 
     const nuevoPedido = await Pedido.create({
       usuario_id,
@@ -230,7 +227,6 @@ exports.create = async (req, res) => {
       pagado: pagado || 0
     });
 
-    // Historial
     if (clienteIdResuelto) {
       await logActividad({
         cliente_id: clienteIdResuelto,
@@ -271,7 +267,6 @@ exports.create = async (req, res) => {
       }
     }
 
-    // Si ya viene pagado → crear venta
     if (pagado === true || pagado === 1) {
       await Pedido.updateEstado(nuevoPedido.id, 'entregado');
 
@@ -283,7 +278,7 @@ exports.create = async (req, res) => {
         cliente_nombre: cliente_nombre || 'Cliente',
         items: itemsProcesados,
         subtotal: subtotal,
-        igv: igv,
+        igv: 0,
         descuento: 0,
         total: totalFinal,
         metodo_pago: metodo_pago || 'efectivo',
@@ -324,7 +319,7 @@ exports.create = async (req, res) => {
 };
 
 // ============================================
-// MARCAR PEDIDO COMO PAGADO
+// MARCAR PEDIDO COMO PAGADO (SIN IGV)
 // ============================================
 exports.marcarPagado = async (req, res) => {
   try {
@@ -334,7 +329,7 @@ exports.marcarPagado = async (req, res) => {
     if (!metodo_pago) {
       return res.status(400).json({
         success: false,
-        error: 'El método de pago es requerido'
+        error: 'El metodo de pago es requerido'
       });
     }
 
@@ -355,14 +350,14 @@ exports.marcarPagado = async (req, res) => {
     if (pedido.pagado === 1 || pedido.pagado === true) {
       return res.status(400).json({
         success: false,
-        error: 'El pedido ya está pagado'
+        error: 'El pedido ya esta pagado'
       });
     }
 
     if (pedido.estado === 'cancelado') {
       return res.status(400).json({
         success: false,
-        error: 'El pedido está cancelado'
+        error: 'El pedido esta cancelado'
       });
     }
 
@@ -410,7 +405,7 @@ exports.marcarPagado = async (req, res) => {
          (pedido_id, usuario_id, mesa_id, cliente_id, cliente_nombre,
           items, subtotal, igv, descuento, total,
           metodo_pago, numero_operacion, tipo_entrega, estado, observaciones)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?)`,
         [
           pedidoData.id,
           pedidoData.usuario_id,
@@ -419,8 +414,6 @@ exports.marcarPagado = async (req, res) => {
           pedidoData.cliente_nombre || null,
           JSON.stringify(items),
           parseFloat(pedidoData.subtotal) || 0,
-          parseFloat(pedidoData.igv) || 0,
-          0,
           parseFloat(pedidoData.total) || 0,
           metodo_pago,
           null,
@@ -584,7 +577,7 @@ exports.updateEstado = async (req, res) => {
     if (!estadosValidos.includes(estado)) {
       return res.status(400).json({
         success: false,
-        error: 'Estado inválido. Los estados válidos son: ' + estadosValidos.join(', ')
+        error: 'Estado invalido. Los estados validos son: ' + estadosValidos.join(', ')
       });
     }
 

@@ -1,8 +1,7 @@
-// models/Pedido.js - COMPLETO Y CORREGIDO
+// models/Pedido.js
 const db = require('../config/database');
 
 class Pedido {
-  // FIND ALL - CORREGIDO
   static async findAll() {
     const [rows] = await db.query(`
       SELECT 
@@ -29,7 +28,6 @@ class Pedido {
     });
   }
 
-  // FIND BY ID - CORREGIDO
   static async findById(id) {
     const [rows] = await db.query(`
       SELECT 
@@ -57,7 +55,6 @@ class Pedido {
     return null;
   }
 
-  // FIND BY USUARIO - CORREGIDO
   static async findByUsuario(usuarioId) {
     const [rows] = await db.query(`
       SELECT 
@@ -85,7 +82,6 @@ class Pedido {
     });
   }
 
-  // FIND PENDIENTES - CORREGIDO
   static async findPendientes() {
     const [rows] = await db.query(`
       SELECT 
@@ -114,7 +110,6 @@ class Pedido {
     });
   }
 
-  // FIND PAGADOS - CORREGIDO
   static async findPagados() {
     const [rows] = await db.query(`
       SELECT 
@@ -143,7 +138,6 @@ class Pedido {
     });
   }
 
-  // FIND ENTREGADOS POR USUARIO - CORREGIDO
   static async findEntregadosByUsuario(usuarioId) {
     const [rows] = await db.query(`
       SELECT 
@@ -172,7 +166,6 @@ class Pedido {
     });
   }
 
-  // FIND BY TIPO ENTREGA - CORREGIDO
   static async findByTipoEntrega(tipo_entrega) {
     const [rows] = await db.query(`
       SELECT 
@@ -201,7 +194,9 @@ class Pedido {
     });
   }
 
-  // CREATE
+  // ============================================
+  // CREATE (SIN IGV)
+  // ============================================
   static async create(pedido) {
     const { 
       mesa_id, 
@@ -237,9 +232,7 @@ class Pedido {
           };
         });
         
-        const itemsString = JSON.stringify(itemsLimpios);
-        const parsed = JSON.parse(itemsString);
-        itemsJson = JSON.stringify(parsed);
+        itemsJson = JSON.stringify(itemsLimpios);
       }
     } catch (error) {
       console.error('Error al procesar items:', error);
@@ -248,18 +241,20 @@ class Pedido {
     
     console.log('Items JSON final:', itemsJson);
     
+    const totalNum = Number(total) || 0;
+    const subtotalNum = totalNum;
+    
     const [result] = await db.query(
       `INSERT INTO pedidos 
        (mesa_id, usuario_id, items, subtotal, igv, total, cliente_nombre, cliente_id, 
         tipo, tipo_entrega, estado, observaciones, metodo_pago, pagado) 
-       VALUES (?, ?, CAST(? AS JSON), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, CAST(? AS JSON), ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         mesa_id || null, 
         usuario_id, 
         itemsJson, 
-        subtotal || 0,
-        igv || 0,
-        total, 
+        subtotalNum,
+        totalNum, 
         cliente_nombre || 'Cliente', 
         cliente_id || null,
         tipo || 'local',
@@ -273,7 +268,9 @@ class Pedido {
     return { id: result.insertId, ...pedido };
   }
 
-  // CREAR VENTA
+  // ============================================
+  // CREAR VENTA (SIN IGV)
+  // ============================================
   static async crearVenta(venta) {
     const { 
       pedido_id,
@@ -311,10 +308,13 @@ class Pedido {
       itemsJson = '[]';
     }
     
+    const totalNum = Number(total) || 0;
+    const subtotalNum = totalNum;
+    
     const [result] = await db.query(
       `INSERT INTO ventas 
        (pedido_id, usuario_id, mesa_id, cliente_id, cliente_nombre, items, subtotal, igv, descuento, total, metodo_pago, numero_operacion, tipo_entrega, estado, observaciones) 
-       VALUES (?, ?, ?, ?, ?, CAST(? AS JSON), ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, CAST(? AS JSON), ?, 0, ?, ?, ?, ?, ?, ?, ?)`,
       [
         pedido_id || null,
         usuario_id,
@@ -322,10 +322,9 @@ class Pedido {
         cliente_id || null,
         cliente_nombre || 'Cliente',
         itemsJson,
-        subtotal || 0,
-        igv || 0,
+        subtotalNum,
         descuento || 0,
-        total,
+        totalNum,
         metodo_pago,
         numero_operacion || null,
         tipo_entrega || 'local',
@@ -336,7 +335,6 @@ class Pedido {
     return { id: result.insertId, ...venta };
   }
 
-  // ACTUALIZAR ESTADO
   static async updateEstado(id, estado) {
     const [result] = await db.query(
       'UPDATE pedidos SET estado = ?, updated_at = NOW() WHERE id = ? AND deleted_at IS NULL',
@@ -345,7 +343,6 @@ class Pedido {
     return result.affectedRows > 0;
   }
 
-  // MARCAR PAGADO
   static async marcarPagado(id, metodo_pago) {
     const [result] = await db.query(
       `UPDATE pedidos 
@@ -359,7 +356,6 @@ class Pedido {
     return result.affectedRows > 0;
   }
 
-  // ELIMINAR (SOFT DELETE)
   static async delete(id) {
     const [result] = await db.query(
       'UPDATE pedidos SET deleted_at = NOW() WHERE id = ?',
